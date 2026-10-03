@@ -128,3 +128,112 @@ html:not(.dark) .glass {
   background: rgba(255, 255, 255, 0.9);
   border-color: rgba(0, 0, 0, 0.08);
 }
+/* =========================================================
+ * AKSESIBILITAS & MODE KHUSUS
+ * ========================================================= */
+
+/* Mode Aksesibilitas */
+.aksesibilitas,
+.aksesibilitas body {
+  font-size: 18px;
+}
+.aksesibilitas .text-xs { font-size: 0.85rem !important; }
+.aksesibilitas .text-\[10px\] { font-size: 0.75rem !important; }
+
+.kontras-tinggi {
+  filter: contrast(1.15);
+}
+.kontras-tinggi a,
+.kontras-tinggi button {
+  outline-offset: 2px;
+}
+
+/* Font Size */
+.font-besar { font-size: 17px; }
+.font-sangat-besar { font-size: 19px; }
+
+/* Mode Fokus */
+.mode-fokus aside#sidebar,
+.mode-fokus .bottom-nav,
+.mode-fokus .fab-btn,
+.mode-fokus [data-tab="verifikasi"],
+.mode-fokus [data-tab="riwayat"] {
+  display: none !important;
+}
+.mode-fokus main {
+  padding-left: 1rem !important;
+}
+.mode-fokus header {
+  left: 0 !important;
+}
+
+/* Mode Hemat Data */
+.hemat-data * {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+}
+.hemat-data img {
+  filter: grayscale(0.3);
+}
+.hemat-data .glass {
+  backdrop-filter: none;
+  background: rgb(25, 28, 30);
+}
+
+/* Toggle switch styling */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  background-color: #323537;
+  border-radius: 9999px;
+  transition: background 0.2s;
+  appearance: none;
+  cursor: pointer;
+}
+.toggle::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle:checked {
+  background-color: #c4c1fb;
+}
+.toggle:checked::before {
+  transform: translateX(18px);
+}
+
+/* Aksen warna via CSS variable */
+:root {
+  --primary: #c4c1fb;
+}
+.bg-primary { background-color: var(--primary) !important; }
+.text-primary { color: var(--primary) !important; }
+.border-primary { border-color: var(--primary) !important; }
+
+/* PWA Install prompt banner */
+.pwa-banner {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 45;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgb(25, 28, 30);
+  border: 1px solid rgba(71, 70, 79, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.pwa-banner img { width: 40px; height: 40px; }
