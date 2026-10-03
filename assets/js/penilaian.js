@@ -1,12 +1,12 @@
 /**
- * SP-PPT — Modul Penilaian
- * Nilai Saya, Beri Nilai (slider), Rekap, Moderasi, Radar Chart
+ * SP-PPT — Modul Penilaian (versi lanjutan)
+ * Fitur: Nilai Saya, Beri Nilai, Batch, Rekap, Moderasi, Revisi, Rekomendasi
  */
 
 import { auth, db, PERAN_DIVISI } from "./firebase-init.js";
 import {
   doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs,
-  orderBy, addDoc, serverTimestamp, onSnapshot,
+  orderBy, addDoc, serverTimestamp, onSnapshot, deleteDoc, limit,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { protectPage } from "./router.js";
@@ -14,43 +14,26 @@ import {
   showToast, openModal, closeModal, skeleton, formatTanggal, waktuRelatif,
   predikat, warnaPeran, inisial, logActivity, esc, debounce,
 } from "./utils.js";
+import {
+  KRITERIA_PER_PERAN, KRITERIA_REKAN, BOBOT_PENILAI_DEFAULT, BOBOT_TAHAPAN_DEFAULT,
+  skorKeNilai, nilaiKePredikat, normalisasiBobot, normalisasiBobotKriteria,
+  hitungNilaiPenilaian, hitungNilaiPerTahapan, hitungNilaiAkhir,
+  generateRekomendasi, perbandinganKelas, hitungTrenNilai,
+  deteksiAnomali, simpanRevisiNilai,
+} from "./agregasi.js";
 
 let ME = null;
 let AKTIF_TAB = "saya";
-
-/* =========================================================
- * KRITERIA PER PERAN
- * ========================================================= */
-const KRITERIA = {
-  Pemain: [
-    { nama: "Hafalan Dialog", bobot: 20, desc: ["<50% hafal", "70% hafal", "90% hafal", "100% hafal"] },
-    { nama: "Penjiwaan Karakter", bobot: 25, desc: ["Tidak mendalami", "Datar", "Jelas", "Hidup & presisi"] },
-    { nama: "Proyeksi Suara & Intonasi", bobot: 15, desc: ["Sering tak terdengar", "Kadang tak terdengar", "Cukup", "Sampai baris belakang"] },
-    { nama: "Blocking & Movement", bobot: 15, desc: ["Tidak ikut", "Kadang keluar", "Sesuai arahan", "Presisi & natural"] },
-    { nama: "Interaksi Panggung", bobot: 15, desc: ["Pasif", "Kurang responsif", "Cukup", "Reaktif & hidup"] },
-    { nama: "Kedisiplinan", bobot: 10, desc: ["<60% on-time", "75%", "90%", "100% on-time"] },
-  ],
-  "Asisten Sutradara": [
-    { nama: "Prompt Book", bobot: 25, desc: ["Tidak ada", "Sebagian", "Lengkap", "Sangat detail"] },
-    { nama: "Catatan Harian", bobot: 25, desc: ["Tidak ada", "Jarang", "Rutin", "Rutin & analitis"] },
-    { nama: "Standby Cue", bobot: 25, desc: ["Tidak siap", "Kurang siap", "Siap", "Sangat presisi"] },
-    { nama: "Evaluasi", bobot: 25, desc: ["Tidak ada", "Dangkal", "Baik", "Mendalam"] },
-  ],
-  default: [
-    { nama: "Kerja Sama", bobot: 30, desc: ["Tidak kooperatif", "Kurang", "Baik", "Sangat baik"] },
-    { nama: "Kualitas Kerja", bobot: 30, desc: ["Buruk", "Cukup", "Baik", "Sangat baik"] },
-    { nama: "Disiplin", bobot: 20, desc: ["Sering telat", "Kadang telat", "Tepat waktu", "Selalu tepat"] },
-    { nama: "Inisiatif", bobot: 20, desc: ["Pasif", "Kurang", "Baik", "Sangat proaktif"] },
-  ],
-};
+let BATCH_MODE = false;
+let SELECTED_SISWA = new Set();
 
 function getKriteria(peran) {
-  if (KRITERIA[peran]) return KRITERIA[peran];
-  if (peran.startsWith("Koordinator Perlengkapan")) return KRITERIA.default;
-  if (peran.startsWith("Anggota Perlengkapan")) return KRITERIA.default;
-  return KRITERIA.default;
+  return KRITERIA_PER_PERAN[peran] || KRITERIA_PER_PERAN["Anggota Perlengkapan"];
 }
 
+function getKriteriaRekan(peran) {
+  return KRITERIA_REKAN[peran] || KRITERIA_REKAN.default;
+}
 /* =========================================================
  * KONVERSI SKOR 1-4 → 100/80/60/40
  * ========================================================= */
@@ -76,50 +59,36 @@ async function renderNilaiSaya() {
   const c = document.getElementById("tab-content");
   c.innerHTML = `<div class="glass rounded-2xl p-5">${skeleton(5)}</div>`;
 
-  // Ambil semua penilaian di mana target = saya
-  const snap = await getDocs(query(
-    collection(db, "penilaian"),
-    where("targetUid", "==", ME.uid)
-  ));
+  const snap = await getDocs(query(collection(db, "penilaian"), where("targetUid", "==", ME.uid)));
   const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const kriteria = getKriteria(ME.profile.peran);
 
-  // Kelompokkan per tahapan
-  const perTahap = { persiapan: [], pelaksanaan: [], pertunjukan: [], pasca: [] };
-  list.forEach((p) => {
-    if (perTahap[p.tahapan]) perTahap[p.tahapan].push(p);
-  });
+  // Hitung menggunakan helper agregasi
+  const hasil = hitungNilaiAkhir(list, kriteria, BOBOT_PENILAI_DEFAULT, BOBOT_TAHAPAN_DEFAULT);
+  const pred = hasil.predikat;
+  const nilaiAkhir = hasil.nilaiAkhir;
 
-  // Hitung rata-rata per tahapan
-  const nilaiPerTahap = {};
-  Object.keys(perTahap).forEach((t) => {
-    const arr = perTahap[t];
-    if (!arr.length) { nilaiPerTahap[t] = 0; return; }
-    let sum = 0;
-    arr.forEach((p) => {
-      const kr = getKriteria(ME.profile.peran);
-      const n = p.nilai || [];
-      let total = 0, totBob = 0;
-      n.forEach((item) => {
-        const k = kr.find((x) => x.nama === item.kriteria);
-        const bob = k ? k.bobot : 10;
-        total += skorKeNilai(item.skor) * bob;
-        totBob += bob;
-      });
-      sum += totBob ? total / totBob : 0;
-    });
-    nilaiPerTahap[t] = sum / arr.length;
-  });
-
-  const nilaiAkhir = hitungNilaiAkhir(nilaiPerTahap);
-  const pred = predikat(nilaiAkhir);
-
-  // Ambil komentar
+  // Komentar
   const komentars = [];
   list.forEach((p) => {
     (p.nilai || []).forEach((n) => {
-      if (n.komentar) komentars.push({ dari: p.jenisPenilai, teks: n.komentar, waktu: p.updatedAt });
+      if (n.komentar) komentars.push({ dari: p.jenisPenilai, teks: n.komentar, waktu: p.updatedAt, tahapan: p.tahapan });
     });
   });
+
+  // Rekomendasi otomatis
+  const rekomendasi = generateRekomendasi(hasil, kriteria);
+
+  // Perbandingan kelas
+  const banding = await perbandinganKelas(ME.profile.kelas, nilaiAkhir);
+
+  // Tren
+  const tren = hitungTrenNilai(list);
+
+  // Nilai per tahap untuk chart
+  const labels = ["Persiapan", "Pelaksanaan", "Pertunjukan", "Pasca"];
+  const tahapKeys = ["persiapan", "pelaksanaan", "pertunjukan", "pasca"];
+  const values = tahapKeys.map((t) => hasil.perTahapan[t].nilai);
 
   const warnaKartu = {
     A: "from-yellow-500/20 to-yellow-500/5 border-yellow-500/40",
@@ -133,15 +102,64 @@ async function renderNilaiSaya() {
     <!-- Kartu Nilai Akhir -->
     <div class="bg-gradient-to-br ${warnaKartu} glass rounded-2xl p-6 border">
       <p class="text-xs text-on-surface-variant">Nilai Akhir Komposit</p>
-      <div class="flex items-baseline gap-3 mt-1">
+      <div class="flex items-baseline gap-3 mt-1 flex-wrap">
         <span class="font-headline font-bold text-5xl">${nilaiAkhir.toFixed(2)}</span>
-        <span class="font-headline text-3xl font-bold ${pred.warna}">${pred.huruf}</span>
+        <span class="font-headline text-3xl font-bold text-${pred.warna}-400">${pred.huruf}</span>
+        <span class="text-sm text-on-surface-variant">${pred.label}</span>
       </div>
-      <p class="text-sm text-on-surface-variant mt-1">${pred.label}</p>
       <div class="grid grid-cols-3 gap-2 mt-4 text-xs">
-        <div class="p-2 rounded-lg bg-surface-container/60"><p class="text-on-surface-variant">Guru (50%)</p><p class="font-bold">—</p></div>
-        <div class="p-2 rounded-lg bg-surface-container/60"><p class="text-on-surface-variant">Ketua (30%)</p><p class="font-bold">—</p></div>
-        <div class="p-2 rounded-lg bg-surface-container/60"><p class="text-on-surface-variant">Rekan (20%)</p><p class="font-bold">—</p></div>
+        <div class="p-2 rounded-lg bg-surface-container/60">
+          <p class="text-on-surface-variant">Guru (50%)</p>
+          <p class="font-bold">${hasil.perTahapan.persiapan.nilaiJenis.guru?.toFixed(1) || "—"}</p>
+        </div>
+        <div class="p-2 rounded-lg bg-surface-container/60">
+          <p class="text-on-surface-variant">Ketua (30%)</p>
+          <p class="font-bold">${hasil.perTahapan.persiapan.nilaiJenis.ketua?.toFixed(1) || "—"}</p>
+        </div>
+        <div class="p-2 rounded-lg bg-surface-container/60">
+          <p class="text-on-surface-variant">Rekan (20%)</p>
+          <p class="font-bold">${hasil.perTahapan.persiapan.nilaiJenis.rekan?.toFixed(1) || "—"}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Perbandingan Kelas -->
+    ${banding ? `
+    <div class="glass rounded-2xl p-5">
+      <h3 class="font-headline font-semibold mb-3 flex items-center gap-2">
+        <span class="material-symbols-outlined text-tertiary">analytics</span> Perbandingan Kelas
+      </h3>
+      <div class="grid grid-cols-3 gap-3 text-center">
+        <div class="p-3 rounded-xl bg-surface-container">
+          <p class="text-xs text-on-surface-variant">Nilai Anda</p>
+          <p class="text-2xl font-bold text-primary">${nilaiAkhir.toFixed(1)}</p>
+        </div>
+        <div class="p-3 rounded-xl bg-surface-container">
+          <p class="text-xs text-on-surface-variant">Rata-rata Kelas</p>
+          <p class="text-2xl font-bold">${banding.rataKelas.toFixed(1)}</p>
+        </div>
+        <div class="p-3 rounded-xl ${banding.selisih >= 0 ? "bg-green-500/15" : "bg-orange-500/15"}">
+          <p class="text-xs text-on-surface-variant">Selisih</p>
+          <p class="text-2xl font-bold ${banding.selisih >= 0 ? "text-green-400" : "text-orange-400"}">${banding.selisih >= 0 ? "+" : ""}${banding.selisih.toFixed(1)}</p>
+        </div>
+      </div>
+      <p class="text-xs text-on-surface-variant text-center mt-3">Posisi Anda <b class="text-primary">${banding.posisi}</b> dari ${banding.jumlahSiswa} siswa ${esc(ME.profile.kelas)}</p>
+    </div>` : ""}
+
+    <!-- Rekomendasi Otomatis -->
+    <div class="glass rounded-2xl p-5">
+      <h3 class="font-headline font-semibold mb-3 flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">lightbulb</span> Rekomendasi Perbaikan
+      </h3>
+      <div class="space-y-2">
+        ${rekomendasi.map((r) => `
+          <div class="p-3 rounded-xl bg-${r.warna}-500/10 border border-${r.warna}-500/30 flex items-start gap-3">
+            <span class="material-symbols-outlined text-${r.warna}-400 mt-0.5">${r.ikon}</span>
+            <div>
+              <p class="text-sm font-medium text-${r.warna}-400">${esc(r.judul)}</p>
+              <p class="text-xs text-on-surface-variant mt-0.5">${esc(r.pesan)}</p>
+            </div>
+          </div>`).join("")}
       </div>
     </div>
 
@@ -157,15 +175,33 @@ async function renderNilaiSaya() {
       <div class="h-64"><canvas id="bar-chart"></canvas></div>
     </div>
 
+    <!-- Tren Nilai -->
+    ${tren.length >= 2 ? `
+    <div class="glass rounded-2xl p-5">
+      <h3 class="font-headline font-semibold mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-secondary">trending_up</span> Tren Nilai</h3>
+      <div class="h-56"><canvas id="tren-chart"></canvas></div>
+    </div>` : ""}
+
     <!-- Rincian Per Kriteria -->
     <div class="glass rounded-2xl p-5">
-      <h3 class="font-headline font-semibold mb-3">📋 Rincian Kriteria (${esc(ME.profile.peran)})</h3>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-headline font-semibold">📋 Rincian Kriteria (${esc(ME.profile.peran)})</h3>
+        <span class="text-xs text-on-surface-variant">Bobot total dinormalisasi otomatis</span>
+      </div>
       <div class="space-y-2">
-        ${getKriteria(ME.profile.peran).map((k) => `
-          <div class="p-3 rounded-xl bg-surface-container flex items-center justify-between">
-            <div><p class="text-sm font-medium">${k.nama}</p><p class="text-xs text-on-surface-variant">Bobot ${k.bobot}%</p></div>
-            <span class="font-headline font-bold text-primary">—</span>
-          </div>`).join("")}
+        ${(() => {
+          const { list: kriteriaNorm, normalized, total } = normalisasiBobotKriteria(kriteria);
+          return kriteriaNorm.map((k) => `
+            <div class="p-3 rounded-xl bg-surface-container flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">${k.nama}</p>
+                <p class="text-xs text-on-surface-variant">
+                  Bobot ${k.bobot.toFixed(1)}%${normalized ? ` <span class="text-secondary">(dari ${kriteria.find(x=>x.nama===k.nama).bobot}%)</span>` : ""}
+                </p>
+              </div>
+              <span class="font-headline font-bold text-primary">—</span>
+            </div>`).join("");
+        })()}
       </div>
     </div>
 
@@ -175,13 +211,10 @@ async function renderNilaiSaya() {
       <div class="flex gap-2 mb-3">
         <button data-filter="all" class="filter-komentar px-3 py-1.5 rounded-lg text-xs bg-primary-container text-primary font-medium">Semua</button>
         <button data-filter="positif" class="filter-komentar px-3 py-1.5 rounded-lg text-xs bg-surface-container">Positif</button>
+        <button data-filter="perbaikan" class="filter-komentar px-3 py-1.5 rounded-lg text-xs bg-surface-container">Perbaikan</button>
       </div>
       <div id="komentar-list" class="space-y-2">
-        ${komentars.length ? komentars.map((k) => `
-          <div class="p-3 rounded-xl bg-surface-container">
-            <p class="text-xs text-on-surface-variant mb-1">${esc(k.dari || "-")} · ${k.waktu ? waktuRelatif(k.waktu) : "-"}</p>
-            <p class="text-sm">${esc(k.teks)}</p>
-          </div>`).join("") : `<p class="text-sm text-on-surface-variant text-center py-6">Belum ada komentar</p>`}
+        ${komentarListHTML(komentars, "all")}
       </div>
     </div>
 
@@ -196,9 +229,44 @@ async function renderNilaiSaya() {
     </div>
   `;
 
-  // Render Chart.js
+  // Render charts
+  renderCharts(values, tren);
+  bindFilterKomentar(komentars);
+}
+
+function komentarListHTML(komentars, filter) {
+  let list = komentars;
+  if (filter === "positif") list = komentars.filter((k) => /baik|bagus|hebat|pertahankan|luar biasa|excellent|keren/i.test(k.teks));
+  if (filter === "perbaikan") list = komentars.filter((k) => /kurang|perlu|tingkatkan|perbaiki|lemah|hindari/i.test(k.teks));
+
+  if (!list.length) {
+    return `<p class="text-sm text-on-surface-variant text-center py-6">Tidak ada komentar</p>`;
+  }
+  return list.map((k) => `
+    <div class="p-3 rounded-xl bg-surface-container">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary-container text-primary font-medium">${esc(k.dari || "-")}</span>
+        <span class="text-[10px] text-on-surface-variant">${esc(k.tahapan || "")}</span>
+        <span class="text-[10px] text-on-surface-variant">· ${k.waktu ? waktuRelatif(k.waktu) : "-"}</span>
+      </div>
+      <p class="text-sm">${esc(k.teks)}</p>
+    </div>`).join("");
+}
+
+function bindFilterKomentar(komentars) {
+  document.querySelectorAll(".filter-komentar").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".filter-komentar").forEach((x) => {
+        x.className = "filter-komentar px-3 py-1.5 rounded-lg text-xs bg-surface-container";
+      });
+      b.className = "filter-komentar px-3 py-1.5 rounded-lg text-xs bg-primary-container text-primary font-medium";
+      document.getElementById("komentar-list").innerHTML = komentarListHTML(komentars, b.dataset.filter);
+    })
+  );
+}
+
+function renderCharts(values, tren) {
   const labels = ["Persiapan", "Pelaksanaan", "Pertunjukan", "Pasca"];
-  const values = [nilaiPerTahap.persiapan, nilaiPerTahap.pelaksanaan, nilaiPerTahap.pertunjukan, nilaiPerTahap.pasca];
 
   new Chart(document.getElementById("radar-chart"), {
     type: "radar",
@@ -248,29 +316,38 @@ async function renderNilaiSaya() {
     },
   });
 
-  // Filter komentar
-  document.querySelectorAll(".filter-komentar").forEach((b) =>
-    b.addEventListener("click", () => {
-      document.querySelectorAll(".filter-komentar").forEach((x) => {
-        x.className = "filter-komentar px-3 py-1.5 rounded-lg text-xs bg-surface-container";
-      });
-      b.className = "filter-komentar px-3 py-1.5 rounded-lg text-xs bg-primary-container text-primary font-medium";
-      const f = b.dataset.filter;
-      const filtered = f === "positif" ? komentars.filter((k) => /baik|bagus|hebat|pertahankan|luar biasa|excellent/i.test(k.teks)) : komentars;
-      document.getElementById("komentar-list").innerHTML = filtered.length
-        ? filtered.map((k) => `<div class="p-3 rounded-xl bg-surface-container"><p class="text-xs text-on-surface-variant mb-1">${esc(k.dari||"-")}</p><p class="text-sm">${esc(k.teks)}</p></div>`).join("")
-        : `<p class="text-sm text-on-surface-variant text-center py-6">Tidak ada komentar</p>`;
-    })
-  );
+  if (tren.length >= 2 && document.getElementById("tren-chart")) {
+    new Chart(document.getElementById("tren-chart"), {
+      type: "line",
+      data: {
+        labels: tren.map((t) => `#${t.urutan}`),
+        datasets: [{
+          label: "Nilai",
+          data: tren.map((t) => t.nilai),
+          borderColor: "#ffb77d",
+          backgroundColor: "rgba(255,183,125,0.15)",
+          tension: 0.35,
+          fill: true,
+          pointBackgroundColor: "#ffb77d",
+          pointRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: "rgba(71,70,79,0.4)" }, ticks: { color: "#c8c5d0" } },
+          x: { grid: { display: false }, ticks: { color: "#c8c5d0" } },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+  }
 }
-
 /* =========================================================
  * TAB BERI NILAI — Form Penilaian
  * ========================================================= */
 async function renderBeriNilai() {
   const c = document.getElementById("tab-content");
-
-  // Hak penilai: guru, pimpinan, sutradara, asisten, koordinator
   const peran = ME.profile.peran;
   const bolehMenilai = ME.profile.role === "guru" || ME.profile.role === "admin" ||
     ["Pimpinan Produksi", "Sutradara", "Asisten Sutradara"].includes(peran) ||
@@ -286,8 +363,15 @@ async function renderBeriNilai() {
 
   c.innerHTML = `
   <div class="glass rounded-2xl p-5">
-    <h3 class="font-headline font-semibold mb-4">✍️ Form Penilaian</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <h3 class="font-headline font-semibold">✍️ Form Penilaian</h3>
+      <div class="flex gap-2">
+        <button id="btn-batch-toggle" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-container-high flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">checklist</span> Mode Batch
+        </button>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
       <div>
         <label class="text-xs text-on-surface-variant mb-1 block">Kelas</label>
         <select id="p-kelas" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm">
@@ -306,43 +390,99 @@ async function renderBeriNilai() {
           <option value="pasca">Pasca (15%)</option>
         </select>
       </div>
+      <div>
+        <label class="text-xs text-on-surface-variant mb-1 block">Filter Peran</label>
+        <select id="p-filter-peran" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm">
+          <option value="">Semua Peran</option>
+        </select>
+      </div>
+    </div>
+    <div id="batch-info" class="hidden mb-3 p-3 rounded-lg bg-primary-container/30 border border-primary/30 text-xs">
+      <div class="flex items-center justify-between">
+        <span><b id="batch-count">0</b> siswa dipilih</span>
+        <button id="btn-batch-proses" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-medium">Nilai Terpilih</button>
+      </div>
     </div>
     <div id="p-siswa-list" class="space-y-2">
       <p class="text-xs text-on-surface-variant text-center py-6">Pilih kelas untuk memuat siswa</p>
     </div>
   </div>
-
-  <!-- Modal penilaian (inline) -->
   <div id="p-form-inline"></div>
   `;
 
-  document.getElementById("p-kelas").addEventListener("change", async (e) => {
-    const kls = e.target.value;
+  // Isi filter peran
+  const filterPeranSel = document.getElementById("p-filter-peran");
+  Object.keys(KRITERIA_PER_PERAN).forEach((p) => {
+    filterPeranSel.innerHTML += `<option value="${p}">${p}</option>`;
+  });
+
+  let DAFTAR_SISWA = [];
+
+  const loadSiswa = async () => {
+    const kls = document.getElementById("p-kelas").value;
+    const filterPeran = document.getElementById("p-filter-peran").value;
     if (!kls) return;
     const list = document.getElementById("p-siswa-list");
     list.innerHTML = `<p class="text-xs text-center py-3">${skeleton(3)}</p>`;
-    const snap = await getDocs(query(collection(db, "users"), where("kelas", "==", kls), where("role", "==", "siswa")));
-    if (snap.empty) {
-      list.innerHTML = `<p class="text-xs text-center py-6 text-on-surface-variant">Tidak ada siswa di kelas ini</p>`;
+
+    let q = query(collection(db, "users"), where("kelas", "==", kls), where("role", "==", "siswa"));
+    const snap = await getDocs(q);
+    DAFTAR_SISWA = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+
+    if (filterPeran) DAFTAR_SISWA = DAFTAR_SISWA.filter((s) => s.peran === filterPeran);
+
+    if (!DAFTAR_SISWA.length) {
+      list.innerHTML = `<p class="text-xs text-center py-6 text-on-surface-variant">Tidak ada siswa</p>`;
       return;
     }
-    list.innerHTML = snap.docs.map((d) => {
-      const s = d.data();
-      return `
-      <div class="flex items-center gap-3 p-3 rounded-xl bg-surface-container hover:bg-surface-container-high transition cursor-pointer btn-nilai-siswa"
-           data-uid="${d.id}" data-nama="${esc(s.nama)}" data-peran="${esc(s.peran)}">
+
+    list.innerHTML = DAFTAR_SISWA.map((s) => `
+      <div class="flex items-center gap-3 p-3 rounded-xl bg-surface-container hover:bg-surface-container-high transition">
+        ${BATCH_MODE ? `<input type="checkbox" class="batch-chk w-4 h-4 rounded accent-primary" data-uid="${s.uid}" />` : ""}
         <div class="w-10 h-10 rounded-full bg-primary-container text-primary flex items-center justify-center font-semibold text-sm">${inisial(s.nama)}</div>
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 btn-nilai-siswa cursor-pointer" data-uid="${s.uid}" data-nama="${esc(s.nama)}" data-peran="${esc(s.peran)}">
           <p class="text-sm font-medium truncate">${esc(s.nama)}</p>
           <p class="text-xs text-on-surface-variant">${esc(s.peran)}</p>
         </div>
-        <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
-      </div>`;
-    }).join("");
+        ${!BATCH_MODE ? `<span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>` : ""}
+      </div>`).join("");
 
-    document.querySelectorAll(".btn-nilai-siswa").forEach((el) =>
-      el.addEventListener("click", () => bukaFormNilai(el.dataset))
-    );
+    if (BATCH_MODE) {
+      list.querySelectorAll(".batch-chk").forEach((chk) =>
+        chk.addEventListener("change", updateBatchInfo)
+      );
+      updateBatchInfo();
+    } else {
+      list.querySelectorAll(".btn-nilai-siswa").forEach((el) =>
+        el.addEventListener("click", () => bukaFormNilai(el.dataset))
+      );
+    }
+  };
+
+  const updateBatchInfo = () => {
+    SELECTED_SISWA.clear();
+    document.querySelectorAll(".batch-chk:checked").forEach((c) => SELECTED_SISWA.add(c.dataset.uid));
+    document.getElementById("batch-count").textContent = SELECTED_SISWA.size;
+  };
+
+  document.getElementById("p-kelas").addEventListener("change", loadSiswa);
+  document.getElementById("p-filter-peran").addEventListener("change", loadSiswa);
+  document.getElementById("p-tahap").addEventListener("change", () => {
+    if (BATCH_MODE) showToast("Tahapan berubah. Silakan pilih siswa lagi.", "info");
+  });
+
+  document.getElementById("btn-batch-toggle").addEventListener("click", () => {
+    BATCH_MODE = !BATCH_MODE;
+    const btn = document.getElementById("btn-batch-toggle");
+    btn.className = `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ${BATCH_MODE ? "bg-primary text-on-primary" : "bg-surface-container-high"}`;
+    document.getElementById("batch-info").classList.toggle("hidden", !BATCH_MODE);
+    SELECTED_SISWA.clear();
+    loadSiswa();
+  });
+
+  document.getElementById("btn-batch-proses").addEventListener("click", () => {
+    if (!SELECTED_SISWA.size) return showToast("Pilih minimal 1 siswa.", "warning");
+    bukaBatchForm([...SELECTED_SISWA], DAFTAR_SISWA);
   });
 }
 
