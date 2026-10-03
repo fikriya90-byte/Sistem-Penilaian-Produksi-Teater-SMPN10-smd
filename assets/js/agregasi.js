@@ -419,39 +419,110 @@ export function hitungTrenNilai(daftarPenilaian) {
 /* =========================================================
  * DETEKSI ANOMALI (untuk moderasi)
  * ========================================================= */
-export function deteksiAnomali(penilaian) {
-  const anomali = [];
-  const skor = (penilaian.nilai || []).map((n) => n.skor);
+async function renderModerasi() {
+  const c = document.getElementById("tab-content");
+  if (!["guru", "admin"].includes(ME.profile.role)) {
+    c.innerHTML = `<div class="glass rounded-2xl p-10 text-center"><span class="material-symbols-outlined text-5xl text-on-surface-variant mb-3">lock</span><p class="text-sm">Hanya guru/admin.</p></div>`;
+    return;
+  }
+  c.innerHTML = `
+  <div class="glass rounded-2xl p-5">
+    <h3 class="font-headline font-semibold mb-3 flex items-center gap-2">
+      <span class="material-symbols-outlined text-error">shield</span> Moderasi Penilaian
+    </h3>
+    <p class="text-xs text-on-surface-variant mb-4">
+      Deteksi otomatis: nilai ekstrem, pola seragam, submit terlalu cepat, variansi ekstrem.
+    </p>
+    <div class="flex gap-2 mb-4">
+      <button data-filter="all" class="mod-filter px-3 py-1.5 rounded-lg text-xs bg-primary-container text-primary font-medium">Semua</button>
+      <button data-filter="extreme" class="mod-filter px-3 py-1.5 rounded-lg text-xs bg-surface-container">Ekstrem</button>
+      <button data-filter="fast" class="mod-filter px-3 py-1.5 rounded-lg text-xs bg-surface-container">Submit Cepat</button>
+      <button data-filter="variance" class="mod-filter px-3 py-1.5 rounded-lg text-xs bg-surface-container">Variansi Tinggi</button>
+    </div>
+    <div id="anomali-list" class="space-y-2">${skeleton(4)}</div>
+  </div>`;
 
-  if (!skor.length) return anomali;
+  try {
+    const snap = await getDocs(query(collection(db, "penilaian"), orderBy("updatedAt", "desc"), limit(50)));
+    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-  // 1. Semua nilai 4 (terlalu murah hati)
-  if (skor.every((s) => s === 4)) {
-    anomali.push({ jenis: "extreme_high", pesan: "Semua nilai 4 — periksa kewajaran" });
-  }
-  // 2. Semua nilai 1 (terlalu keras)
-  if (skor.every((s) => s === 1)) {
-    anomali.push({ jenis: "extreme_low", pesan: "Semua nilai 1 — periksa kewajaran" });
-  }
-  // 3. Pola seragam
-  if (skor.length >= 4 && skor.every((s) => s === skor[0]) && skor[0] !== 4 && skor[0] !== 1) {
-    anomali.push({ jenis: "uniform", pesan: `Semua nilai ${skor[0]} — tidak variatif` });
-  }
-  // 4. Submit terlalu cepat (< 10 detik dari createdAt)
-  if (penilaian.createdAt?.toDate && penilaian.updatedAt?.toDate) {
-    const diff = penilaian.updatedAt.toDate() - penilaian.createdAt.toDate();
-    if (diff < 10000 && diff >= 0) {
-      anomali.push({ jenis: "fast_submit", pesan: `Submit < 10 detik (${Math.round(diff / 1000)}s)` });
-    }
-  }
-  // 5. Variansi ekstrem (gap > 3 antara nilai tertinggi & terendah)
-  const max = Math.max(...skor);
-  const min = Math.min(...skor);
-  if (max - min >= 3) {
-    anomali.push({ jenis: "high_variance", pesan: `Rentang nilai ekstrem (${min}–${max})` });
-  }
+    const anomali = [];
+    list.forEach((p) => {
+      const det = deteksiAnomali(p);
+      if (det.length) {
+        anomali.push({ id: p.id, det, data: p });
+      }
+    });
 
-  return anomali;
+    const renderAnomali = (filter = "all") => {
+      let filtered = anomali;
+      if (filter === "extreme") filtered = anomali.filter((a) => a.det.some((d) => d.jenis.includes("extreme") || d.jenis === "uniform"));
+      if (filter === "fast") filtered = anomali.filter((a) => a.det.some((d) => d.jenis === "fast_submit"));
+      if (filter === "variance") filtered = anomali.filter((a) => a.det.some((d) => d.jenis === "high_variance"));
+
+      const el = document.getElementById("anomali-list");
+      if (!filtered.length) {
+        el.innerHTML = `<p class="text-sm text-on-surface-variant text-center py-8">Tidak ada anomali ✓</p>`;
+        return;
+      }
+      el.innerHTML = filtered.map((a) => `
+        <div class="p-3 rounded-xl bg-error/10 border border-error/30">
+          <p class="text-sm font-medium text-error flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">warning</span> ${a.det.map((d) => esc(d.pesan)).join(" · ")}
+          </p>
+          <p class="text-xs text-on-surface-variant mt-1">
+            Penilai: <b>${esc(a.data.jenisPenilai)}</b> · Target: ${esc((a.data.targetUid || "").slice(0, 8))}... · Tahap: ${esc(a.data.tahapan)}
+          </p>
+          <p class="text-[10px] text-on-surface-variant mt-1">${a.data.updatedAt ? waktuRelatif(a.data.updatedAt) : "-"}</p>
+          <div class="flex gap-2 mt-2">
+            <button data-id="${a.id}" class="btn-valid px-3 py-1 rounded-lg bg-green-600 text-white text-xs">Valid</button>
+            <button data-id="${a.id}" class="btn-tolak px-3 py-1 rounded-lg bg-error text-white text-xs">Tolak</button>
+            <button data-id="${a.id}" class="btn-detail px-3 py-1 rounded-lg bg-surface-container-high text-xs">Detail</button>
+          </div>
+        </div>
+      `).join("");
+
+      el.querySelectorAll(".btn-valid, .btn-tolak").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const id = b.dataset.id;
+          const aksi = b.classList.contains("btn-valid") ? "validasi" : "tolak";
+          try {
+            await updateDoc(doc(db, "penilaian", id), {
+              status: aksi === "validasi" ? "final" : "rejected",
+              moderatedAt: serverTimestamp(),
+              moderatedBy: ME.uid,
+            });
+            await logActivity(ME.uid, `moderasi_${aksi}`, `penilaian=${id}`);
+            showToast(`Penilaian di-${aksi}.`, "success");
+            b.closest("div").remove();
+          } catch (e) { showToast("Gagal.", "error"); }
+        })
+      );
+
+      el.querySelectorAll(".btn-detail").forEach((b) =>
+        b.addEventListener("click", () => {
+          const item = anomali.find((x) => x.id === b.dataset.id);
+          if (!item) return;
+          alert(`Detail Penilaian:\n\nTarget: ${item.data.targetUid}\nTahap: ${item.data.tahapan}\nJenis: ${item.data.jenisPenilai}\nStatus: ${item.data.status}\nVersi: ${item.data.versi || 1}\n\nNilai:\n${(item.data.nilai || []).map((n) => `• ${n.kriteria}: ${n.skor}${n.komentar ? ' — "' + n.komentar + '"' : ""}`).join("\n")}\n\nAnomali:\n${item.det.map((d) => "• " + d.pesan).join("\n")}`);
+        })
+      );
+    };
+
+    renderAnomali();
+
+    document.querySelectorAll(".mod-filter").forEach((b) =>
+      b.addEventListener("click", () => {
+        document.querySelectorAll(".mod-filter").forEach((x) => {
+          x.className = "mod-filter px-3 py-1.5 rounded-lg text-xs bg-surface-container";
+        });
+        b.className = "mod-filter px-3 py-1.5 rounded-lg text-xs bg-primary-container text-primary font-medium";
+        renderAnomali(b.dataset.filter);
+      })
+    );
+  } catch (e) {
+    console.error(e);
+    document.getElementById("anomali-list").innerHTML = `<p class="text-sm text-on-surface-variant text-center py-6">Gagal memuat data.</p>`;
+  }
 }
 
 /* =========================================================
