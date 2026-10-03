@@ -7,195 +7,103 @@
 <title>SP-PPT — Login | SMPN 10 Samarinda</title>
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="assets/img/logo-sekolah.png" />
-
-<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-
-<!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-tailwind.config = {
-  darkMode: 'class',
-  theme: {
-    extend: {
-      colors: {
-        surface: '#101415',
-        'surface-container-low': '#191c1e',
-        'surface-container': '#1d2022',
-        'surface-container-high': '#272a2c',
-        'surface-container-highest': '#323537',
-        'on-surface': '#e0e3e5',
-        'on-surface-variant': '#c8c5d0',
-        'outline-variant': '#47464f',
-        primary: '#c4c1fb',
-        'on-primary': '#2d2a5b',
-        'primary-container': '#1e1b4b',
-        'on-primary-container': '#8683ba',
-        secondary: '#ffb77d',
-        'on-secondary': '#4d2600',
-        'secondary-container': '#d97707',
-        tertiary: '#b4c5ff',
-        'on-tertiary': '#002a78',
-        'tertiary-container': '#001d58',
-        error: '#ffb4ab',
-        'error-container': '#93000a',
-      },
-      fontFamily: {
-        headline: ['"Plus Jakarta Sans"', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
-      },
-      borderRadius: {
-        DEFAULT: '0.25rem',
-        lg: '0.5rem',
-        xl: '0.75rem',
-        '2xl': '1rem',
-      },
-      spacing: {
-        'space-xs': '0.25rem',
-        'space-sm': '0.5rem',
-        'space-md': '1rem',
-        'space-lg': '1.5rem',
-        'space-xl': '2.5rem',
-        gutter: '1.5rem',
-        margin: '2rem',
-      },
-    },
-  },
-};
+tailwind.config = { darkMode: 'class', theme: { extend: {
+  colors: { surface:'#101415','surface-container-low':'#191c1e','surface-container':'#1d2022','surface-container-high':'#272a2c','surface-container-highest':'#323537','on-surface':'#e0e3e5','on-surface-variant':'#c8c5d0','outline-variant':'#47464f',primary:'#c4c1fb','on-primary':'#2d2a5b','primary-container':'#1e1b4b','secondary':'#ffb77d','tertiary':'#b4c5ff','error':'#ffb4ab' },
+  fontFamily: { headline: ['"Plus Jakarta Sans"','sans-serif'], body: ['Inter','sans-serif'] },
+}}};
 </script>
-
 <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body class="font-body bg-surface text-on-surface min-h-screen">
 
-<!-- Background motif teater -->
 <div class="fixed inset-0 z-0">
   <img src="https://iili.io/nJ1Rcj1.png" alt="" class="w-full h-full object-cover" />
   <div class="absolute inset-0" style="background: linear-gradient(to bottom, rgba(16,20,21,0.92), rgba(16,20,21,0.98));"></div>
 </div>
 
-<!-- Container Login -->
 <main class="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
   <div class="w-full max-w-md">
-    <!-- Kartu Putih Semi-Transparan -->
-    <div class="bg-white/95 dark:bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden border border-white/40">
-
-      <!-- Header Logo -->
+    <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden border border-white/40">
       <div class="pt-8 pb-4 px-6 text-center">
         <div class="flex items-center justify-center gap-4 mb-4">
-          <img src="https://iili.io/nBiviCX.png" alt="Logo SMPN 10 Samarinda" class="w-16 h-16 object-contain" />
+          <img src="https://iili.io/nBiviCX.png" alt="Logo Sekolah" class="w-16 h-16 object-contain" />
           <div class="w-px h-12 bg-gray-300"></div>
-          <img src="https://iili.io/nap50AB.png" alt="Logo Seni Budaya" class="w-16 h-16 object-contain" />
+          <img src="https://iili.io/nap50AB.png" alt="Logo Mapel" class="w-16 h-16 object-contain" />
         </div>
         <h1 class="font-headline text-2xl font-bold text-gray-900">SP-PPT</h1>
         <p class="font-body text-sm text-gray-600 mt-1">Sistem Penilaian & Manajemen Produksi Teater</p>
         <p class="font-body text-xs text-gray-500 mt-1">SMP Negeri 10 Samarinda — Kelas IX</p>
       </div>
 
-      <!-- Tabs Role -->
       <div class="px-6">
-        <div class="grid grid-cols-3 gap-1 bg-gray-100 rounded-lg p-1 mb-5" role="tablist">
-          <button data-role="siswa" class="role-tab py-2 px-3 rounded-md text-xs font-medium transition-all active" role="tab">
-            <span class="material-symbols-outlined text-base block mx-auto">school</span>
-            Siswa
-          </button>
-          <button data-role="guru" class="role-tab py-2 px-3 rounded-md text-xs font-medium transition-all" role="tab">
-            <span class="material-symbols-outlined text-base block mx-auto">co_present</span>
-            Guru
-          </button>
-          <button data-role="admin" class="role-tab py-2 px-3 rounded-md text-xs font-medium transition-all" role="tab">
-            <span class="material-symbols-outlined text-base block mx-auto">admin_panel_settings</span>
-            Admin
-          </button>
+        <div class="grid grid-cols-3 gap-1 bg-gray-100 rounded-lg p-1 mb-5">
+          <button data-role="siswa" class="role-tab py-2 px-3 rounded-md text-xs font-medium active"><span class="material-symbols-outlined text-base block mx-auto">school</span>Siswa</button>
+          <button data-role="guru" class="role-tab py-2 px-3 rounded-md text-xs font-medium"><span class="material-symbols-outlined text-base block mx-auto">co_present</span>Guru</button>
+          <button data-role="admin" class="role-tab py-2 px-3 rounded-md text-xs font-medium"><span class="material-symbols-outlined text-base block mx-auto">admin_panel_settings</span>Admin</button>
         </div>
       </div>
 
-      <!-- Form Login -->
-      <form id="login-form" class="px-6 pb-6 space-y-4">
-
-        <!-- SISWA: Pilih Kelas -->
+      <form id="login-form" class="px-6 pb-6 space-y-4" autocomplete="off">
         <div id="field-kelas" class="form-field">
           <label class="block text-xs font-medium text-gray-700 mb-1">Kelas</label>
-          <select id="input-kelas" class="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white">
-            <option value="">Pilih Kelas</option>
-            <option value="IX-A">IX-A</option>
-            <option value="IX-B">IX-B</option>
-            <option value="IX-C">IX-C</option>
-            <option value="IX-D">IX-D</option>
-            <option value="IX-E">IX-E</option>
-            <option value="IX-F">IX-F</option>
+          <select id="input-kelas" class="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg bg-white">
+            <option value="">Pilih Kelas (opsional)</option>
+            <option>IX-A</option><option>IX-B</option><option>IX-C</option>
+            <option>IX-D</option><option>IX-E</option><option>IX-F</option>
           </select>
         </div>
-
-        <!-- Input Email/WA/NIS atau Email Guru/Admin -->
         <div class="form-field">
-          <label class="block text-xs font-medium text-gray-700 mb-1" id="label-identitas">Email / No. WhatsApp / NIS</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1" id="label-identitas">Email / No. WhatsApp</label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">person</span>
-            <input type="text" id="input-identitas" required autocomplete="username"
-              class="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-              placeholder="nama@email.com atau 08xxxxxxxxxx" />
+            <input type="text" id="input-identitas" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              class="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg bg-white" placeholder="nama@email.com atau 08xxxxxxxxxx" />
           </div>
         </div>
-
-        <!-- Password -->
         <div class="form-field">
           <label class="block text-xs font-medium text-gray-700 mb-1" id="label-password">Password</label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">lock</span>
-            <input type="password" id="input-password" required minlength="6" autocomplete="current-password"
-              class="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-              placeholder="••••••••" />
-            <button type="button" id="toggle-password" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 p-1 rounded hover:bg-gray-100" aria-label="Tampilkan password">
+            <input type="password" id="input-password" required minlength="6" autocomplete="new-password"
+              class="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg bg-white" placeholder="••••••••" />
+            <button type="button" id="toggle-password" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 p-1 rounded hover:bg-gray-100">
               <span class="material-symbols-outlined text-xl">visibility</span>
             </button>
           </div>
         </div>
-
-        <!-- Admin Passkey -->
         <div id="field-passkey" class="form-field hidden">
           <label class="block text-xs font-medium text-gray-700 mb-1">Passkey Admin</label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">key</span>
-            <input type="password" id="input-passkey" class="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white" placeholder="Kode akses admin" />
+            <input type="password" id="input-passkey" autocomplete="new-password"
+              class="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg bg-white" placeholder="Kode akses admin" />
           </div>
         </div>
-
-        <!-- Remember & Lupa -->
         <div class="flex items-center justify-between text-xs">
           <label class="flex items-center gap-2 text-gray-600">
-            <input type="checkbox" id="remember-me" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-            Ingat saya
+            <input type="checkbox" id="remember-me" class="rounded border-gray-300" /> Ingat saya
           </label>
           <button type="button" id="btn-lupa" class="text-indigo-600 hover:underline font-medium">Lupa Password?</button>
         </div>
-
-        <!-- Submit -->
-        <button type="submit" id="btn-login"
-          class="w-full py-3 rounded-lg font-headline font-semibold text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50">
+        <button type="submit" id="btn-login" class="w-full py-3 rounded-lg font-headline font-semibold text-sm text-white bg-indigo-600 hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50">
           <span class="material-symbols-outlined text-lg">login</span>
           <span id="btn-login-text">Masuk</span>
         </button>
-
-        <!-- Register -->
         <div id="wrap-register" class="text-center text-xs text-gray-600 pt-2 border-t border-gray-200">
-          Belum punya akun? 
-          <button type="button" id="btn-register" class="text-indigo-600 hover:underline font-medium">Daftar di sini</button>
+          Belum punya akun? <button type="button" id="btn-register" class="text-indigo-600 hover:underline font-medium">Daftar di sini</button>
         </div>
       </form>
     </div>
-
-    <!-- Footer -->
-    <p class="text-center text-xs text-gray-400 mt-6">
-      © 2025 SMP Negeri 10 Samarinda · Seni Budaya & Teater
-    </p>
+    <p class="text-center text-xs text-gray-400 mt-6">© 2025 SMP Negeri 10 Samarinda · Seni Budaya & Teater</p>
   </div>
 </main>
 
-<!-- Modal Lupa Password -->
+<!-- Modal Lupa -->
 <div id="modal-lupa" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
   <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-modal></div>
   <div class="relative bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
@@ -203,72 +111,88 @@ tailwind.config = {
       <span class="material-symbols-outlined text-indigo-600 text-2xl">help</span>
       <h3 class="font-headline font-semibold text-gray-900">Lupa Password?</h3>
     </div>
-    <p class="text-sm text-gray-600 mb-4">Silakan hubungi <strong>Guru Pengampu Seni Budaya</strong> untuk reset password. Sertakan nama lengkap dan kelas Anda.</p>
-    <button type="button" class="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-medium text-sm hover:bg-indigo-700" data-close-modal>Tutup</button>
+    <p class="text-sm text-gray-600 mb-4">Hubungi <strong>Guru Pengampu Seni Budaya</strong> untuk reset password.</p>
+    <button type="button" class="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-medium text-sm" data-close-modal>Tutup</button>
   </div>
 </div>
 
-<!-- Modal Register Siswa -->
-<div id="modal-register" class="fixed inset-0 z-50 hidden items-center justify-center p-4 overflow-y-auto">
-  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-modal></div>
-  <div class="relative bg-white rounded-2xl max-w-md w-full my-8 shadow-2xl">
-    <div class="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between rounded-t-2xl">
-      <h3 class="font-headline font-semibold text-gray-900">Registrasi Siswa</h3>
-      <button type="button" data-close-modal class="p-1 rounded hover:bg-gray-100">
-        <span class="material-symbols-outlined text-gray-600">close</span>
-      </button>
+<!-- Modal Register -->
+<div id="modal-register" class="fixed inset-0 z-50 hidden overflow-y-auto">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" data-close-modal></div>
+  <div class="relative min-h-full flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-2xl max-w-md w-full shadow-2xl my-4">
+      <div class="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between rounded-t-2xl z-10">
+        <h3 class="font-headline font-semibold text-gray-900">Registrasi Siswa</h3>
+        <button type="button" data-close-modal class="p-1 rounded hover:bg-gray-100"><span class="material-symbols-outlined text-gray-600">close</span></button>
+      </div>
+      <form id="form-register" class="p-6 space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Kode Kelas *</label>
+          <input type="text" id="reg-kode" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" placeholder="Contoh: IXD-9234" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Nama Lengkap *</label>
+          <input type="text" id="reg-nama" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">NIS</label>
+          <input type="text" id="reg-nis" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Email *</label>
+          <input type="email" id="reg-email" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">No. WhatsApp *</label>
+          <input type="tel" id="reg-wa" required pattern="[0-9]{10,15}" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" placeholder="08xxxxxxxxxx" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Password * (min 6 karakter)</label>
+          <input type="password" id="reg-pass" required minlength="6" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Konfirmasi Password *</label>
+          <input type="password" id="reg-pass2" required minlength="6" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Peran Awal</label>
+          <select id="reg-peran" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg">
+            <option value="Pemain" selected>Pemain (Aktor/Aktris)</option>
+            <optgroup label="Pengurus Inti">
+              <option value="Pimpinan Produksi">Pimpinan Produksi</option>
+              <option value="Sekretaris">Sekretaris</option>
+              <option value="Bendahara">Bendahara</option>
+            </optgroup>
+            <optgroup label="Artistik">
+              <option value="Sutradara">Sutradara</option>
+              <option value="Asisten Sutradara">Asisten Sutradara</option>
+            </optgroup>
+            <optgroup label="Koordinator Divisi">
+              <option value="Koordinator Perlengkapan">Koordinator Perlengkapan</option>
+              <option value="Koordinator Publikasi & Dokumentasi">Koordinator Publikasi & Dokumentasi</option>
+              <option value="Koordinator Tata Panggung">Koordinator Tata Panggung</option>
+              <option value="Koordinator Tata Rias">Koordinator Tata Rias</option>
+              <option value="Koordinator Tata Busana">Koordinator Tata Busana</option>
+              <option value="Koordinator Tata Musik & Suara">Koordinator Tata Musik & Suara</option>
+            </optgroup>
+            <optgroup label="Anggota Divisi">
+              <option value="Anggota Perlengkapan">Anggota Perlengkapan</option>
+              <option value="Anggota Publikasi & Dokumentasi">Anggota Publikasi & Dokumentasi</option>
+              <option value="Anggota Tata Panggung">Anggota Tata Panggung</option>
+              <option value="Anggota Tata Rias">Anggota Tata Rias</option>
+              <option value="Anggota Tata Busana">Anggota Tata Busana</option>
+              <option value="Anggota Tata Musik & Suara">Anggota Tata Musik & Suara</option>
+            </optgroup>
+          </select>
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-medium text-sm">Daftar Sekarang</button>
+      </form>
     </div>
-    <form id="form-register" class="p-6 space-y-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Kode Kelas *</label>
-        <input type="text" id="reg-kode" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" placeholder="Contoh: IXS-2025" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Nama Lengkap *</label>
-        <input type="text" id="reg-nama" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">NIS</label>
-        <input type="text" id="reg-nis" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Email *</label>
-        <input type="email" id="reg-email" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">No. WhatsApp *</label>
-        <input type="tel" id="reg-wa" required pattern="[0-9]{10,15}" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" placeholder="08xxxxxxxxxx" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Password * (min 8 karakter)</label>
-        <input type="password" id="reg-pass" required minlength="8" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Konfirmasi Password *</label>
-        <input type="password" id="reg-pass2" required minlength="8" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Peran Awal</label>
-        <select id="reg-peran" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg">
-          <option value="Pemain">Pemain (default)</option>
-          <option value="Anggota Perlengkapan">Anggota Perlengkapan</option>
-          <option value="Anggota Publikasi & Dokumentasi">Anggota Publikasi & Dokumentasi</option>
-          <option value="Anggota Tata Panggung">Anggota Tata Panggung</option>
-          <option value="Anggota Tata Rias">Anggota Tata Rias</option>
-          <option value="Anggota Tata Busana">Anggota Tata Busana</option>
-          <option value="Anggota Tata Musik & Suara">Anggota Tata Musik & Suara</option>
-        </select>
-      </div>
-      <button type="submit" class="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-medium text-sm hover:bg-indigo-700">Daftar Sekarang</button>
-      <p class="text-xs text-gray-500 text-center">Data siswa akan diverifikasi guru pengampu.</p>
-    </form>
   </div>
 </div>
 
-<!-- Toast Container -->
 <div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div>
 
-<!-- Firebase SDK -->
 <script type="module" src="assets/js/auth.js"></script>
 </body>
 </html>
