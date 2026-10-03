@@ -14,6 +14,7 @@ import {
   showToast, openModal, closeModal, skeleton, formatTanggal, formatWaktu,
   waktuRelatif, countdown, predikat, warnaPeran, inisial, logActivity, esc,
 } from "./utils.js";
+import { initNotifikasi, bukaPanelNotif, kirimNotifikasiBanyak } from "./notifikasi.js";
 
 /* =========================================================
  * STATE
@@ -265,46 +266,6 @@ function cardDeadline(list = []) {
           <div class="flex-1">
             <p class="text-sm font-medium">${esc(t.judul)}</p>
             <p class="text-xs text-on-surface-variant">${t.deadline ? countdown(t.deadline) + " lagi" : "-"}</p>
-          </div>
-        </div>`
-        )
-        .join("")}
-    </div>
-  </div>`;
-}
-
-function cardNotifikasi(list = []) {
-  const items = list.length
-    ? list
-    : [{ judul: "Belum ada notifikasi", pesan: "Notifikasi baru akan muncul di sini", waktu: null, jenis: "info" }];
-  const colorMap = {
-    Tugas: "text-blue-400",
-    Instruksi: "text-purple-400",
-    Info: "text-green-400",
-    Urgent: "text-red-400",
-    Reminder: "text-orange-400",
-    Feedback: "text-pink-400",
-    Sistem: "text-gray-400",
-  };
-  return `
-  <div class="glass rounded-2xl p-5">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="font-headline font-semibold flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary">notifications</span> Notifikasi
-      </h3>
-      <button id="btn-all-notif" class="text-xs text-primary hover:underline">Lihat Semua</button>
-    </div>
-    <div class="space-y-2">
-      ${items
-        .slice(0, 5)
-        .map(
-          (n) => `
-        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container">
-          <span class="material-symbols-outlined ${colorMap[n.jenis] || "text-gray-400"} mt-0.5">circle_notifications</span>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium truncate">${esc(n.judul)}</p>
-            <p class="text-xs text-on-surface-variant line-clamp-2">${esc(n.pesan || "")}</p>
-            <p class="text-[10px] text-on-surface-variant mt-1">${n.waktu ? waktuRelatif(n.waktu) : "-"}</p>
           </div>
         </div>`
         )
@@ -651,7 +612,33 @@ function initTheme() {
     updateIcon();
   });
 }
+(async function init() {
+  try {
+    const { uid, profile } = await protectPage();
+    ME = { uid, profile };
 
+    renderSidebar(profile.role);
+    renderBottomNav(profile.role);
+    renderHeader(profile);
+    initTheme();
+    initFAB();
+    initLogout();
+    initMenuToggle();
+    initNotifikasi(uid, profile);   // ← TAMBAHKAN INI
+
+    await renderDashboard(uid, profile);
+
+    // Bind card preview notif → buka panel
+    setTimeout(() => {
+      document.querySelectorAll(".notif-preview").forEach((el) =>
+        el.addEventListener("click", bukaPanelNotif)
+      );
+      document.getElementById("btn-all-notif")?.addEventListener("click", bukaPanelNotif);
+    }, 500);
+  } catch (e) {
+    console.warn("[Init]", e);
+  }
+})();
 /* =========================================================
  * FAB ACTIONS
  * ========================================================= */
@@ -670,28 +657,34 @@ function initFAB() {
     })
   );
 
-  document.getElementById("confirm-darurat")?.addEventListener("click", async () => {
-    const pesan = document.getElementById("darurat-pesan").value.trim();
-    if (!pesan) return showToast("Isi pesan darurat.", "warning");
-    try {
-      // Kirim ke guru & pimpinan
-      const usersSnap = await getDocs(query(collection(db, "users"), where("peran", "in", ["Guru Pembina", "Pimpinan Produksi"])));
-      for (const u of usersSnap.docs) {
-        await addDoc(collection(db, "notifikasi"), {
-          penerimaUid: u.id,
-          jenis: "Urgent",
-          judul: "🚨 DARURAT dari " + (ME.profile.nama || ""),
-          pesan,
-          dibaca: false,
-          waktu: serverTimestamp(),
-        });
-      }
-      showToast("Notifikasi darurat terkirim!", "success");
-      closeModal("modal-darurat");
-    } catch (e) {
-      showToast("Gagal kirim darurat.", "error");
-    }
-  });
+document.getElementById("confirm-darurat")?.addEventListener("click", async () => {
+  const pesan = document.getElementById("darurat-pesan").value.trim();
+  if (!pesan) return showToast("Isi pesan darurat.", "warning");
+  try {
+    const usersSnap = await getDocs(query(
+      collection(db, "users"),
+      where("peran", "in", ["Guru Pembina", "Pimpinan Produksi"])
+    ));
+    const uids = usersSnap.docs.map((d) => d.id);
+
+    await kirimNotifikasiBanyak({
+      penerimaUids: uids,
+      jenis: "Urgent",
+      judul: `🚨 DARURAT dari ${ME.profile.nama}`,
+      pesan,
+      dari: ME.profile.nama,
+      link: "dashboard.html",
+    });
+
+    await logActivity(ME.uid, "kirim_darurat", pesan.slice(0, 50));
+    showToast(`Notifikasi darurat terkirim ke ${uids.length} penerima!`, "success");
+    closeModal("modal-darurat");
+    document.getElementById("darurat-pesan").value = "";
+  } catch (e) {
+    console.error(e);
+    showToast("Gagal kirim darurat.", "error");
+  }
+});
 }
 
 /* =========================================================
