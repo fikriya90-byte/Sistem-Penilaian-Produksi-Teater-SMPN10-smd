@@ -336,4 +336,230 @@ async function renderBlocking() {
   const c = document.getElementById("tab-content");
   c.innerHTML = `<div class="glass rounded-2xl p-5">${skeleton(3)}</div>`;
 
-  const snap = await getDocs(query(collection(db, "blocking"), where
+  const snap = await getDocs(query(collection(db, "blocking"), where("kelas", "==", ME.profile.kelas)));
+
+  // Cari posisi saya
+  const blokirSaya = [];
+  snap.docs.forEach((d) => {
+    const b = d.data();
+    Object.entries(b.posisi || {}).forEach(([cell, p]) => {
+      if (p.uid === ME.uid) blokirSaya.push({ adegan: b.adegan, cell: parseInt(cell), nama: p.nama });
+    });
+  });
+
+  // Grouping per adegan
+  const perAdegan = {};
+  blokirSaya.forEach((b) => {
+    if (!perAdegan[b.adegan]) perAdegan[b.adegan] = [];
+    perAdegan[b.adegan].push(b.cell);
+  });
+
+  c.innerHTML = `
+    <div class="glass rounded-2xl p-5">
+      <h3 class="font-headline font-semibold mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">directions_walk</span> Blocking Saya
+      </h3>
+      ${Object.keys(perAdegan).length ? Object.entries(perAdegan).map(([adegan, cells]) => `
+        <div class="p-3 rounded-xl bg-surface-container mb-3">
+          <p class="text-sm font-medium mb-2">${esc(adegan)}</p>
+          <div class="grid grid-cols-3 gap-1 max-w-xs">
+            ${Array.from({ length: 9 }).map((_, i) => `
+              <div class="aspect-square rounded ${cells.includes(i) ? "bg-primary text-on-primary" : "bg-surface-container-high"} border border-outline-variant/40 flex items-center justify-center text-[10px] font-medium">
+                ${cells.includes(i) ? "SAYA" : ""}
+              </div>
+            `).join("")}
+          </div>
+          <p class="text-[10px] text-on-surface-variant mt-2">Anda berada di area: ${cells.map((c) => c + 1).join(", ")}</p>
+        </div>
+      `).join("") : `<p class="text-sm text-on-surface-variant text-center py-8">Belum ada blocking yang melibatkan Anda</p>`}
+      <p class="text-[10px] text-on-surface-variant mt-2 text-center">Data dari Asisten Sutradara</p>
+    </div>`;
+}
+
+/* =========================================================
+ * REFLEKSI DIRI
+ * ========================================================= */
+async function renderRefleksi() {
+  const c = document.getElementById("tab-content");
+  const snap = await getDocs(query(collection(db, "refleksi"), where("siswaUid", "==", ME.uid)));
+  const refleksi = snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+
+  c.innerHTML = `
+    <div class="glass rounded-2xl p-5 border-l-4 border-secondary">
+      <h3 class="font-headline font-semibold mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">psychology</span> Refleksi Diri (Tahap Pasca)
+      </h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-on-surface-variant mb-1 block">Apa yang sudah baik dalam penampilan saya?</label>
+          <textarea id="r-baik" rows="3" placeholder="Tuliskan hal positif..." class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm">${esc(refleksi?.baik || "")}</textarea>
+        </div>
+        <div>
+          <label class="text-xs text-on-surface-variant mb-1 block">Apa yang perlu saya perbaiki?</label>
+          <textarea id="r-perbaiki" rows="3" placeholder="Tuliskan hal yang perlu diperbaiki..." class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm">${esc(refleksi?.perbaiki || "")}</textarea>
+        </div>
+        <div>
+          <label class="text-xs text-on-surface-variant mb-1 block">Target saya ke depan</label>
+          <textarea id="r-target" rows="3" placeholder="Target untuk produksi berikutnya..." class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm">${esc(refleksi?.target || "")}</textarea>
+        </div>
+        <div>
+          <label class="text-xs text-on-surface-variant mb-1 block">Rating kepuasan diri (1-5)</label>
+          <input id="r-rating" type="range" min="1" max="5" value="${refleksi?.rating || 3}" class="w-full accent-primary" />
+          <p class="text-xs text-center text-on-surface-variant mt-1">Nilai: <span id="r-rating-val">${refleksi?.rating || 3}</span></p>
+        </div>
+        <button id="btn-simpan-refleksi" class="w-full py-2.5 rounded-lg bg-secondary text-on-secondary text-sm font-medium">
+          ${refleksi ? "Update Refleksi" : "Simpan Refleksi"}
+        </button>
+      </div>
+      ${refleksi ? `<p class="text-[10px] text-on-surface-variant text-center mt-3">Terakhir diperbarui: ${waktuRelatif(refleksi.updatedAt || refleksi.createdAt)}</p>` : ""}
+    </div>`;
+
+  document.getElementById("r-rating").addEventListener("input", (e) => (document.getElementById("r-rating-val").textContent = e.target.value));
+
+  document.getElementById("btn-simpan-refleksi").addEventListener("click", async () => {
+    const data = {
+      siswaUid: ME.uid,
+      nama: ME.profile.nama,
+      kelas: ME.profile.kelas,
+      baik: document.getElementById("r-baik").value.trim(),
+      perbaiki: document.getElementById("r-perbaiki").value.trim(),
+      target: document.getElementById("r-target").value.trim(),
+      rating: parseInt(document.getElementById("r-rating").value),
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      if (refleksi) {
+        await updateDoc(doc(db, "refleksi", refleksi.id), data);
+      } else {
+        data.createdAt = serverTimestamp();
+        await addDoc(collection(db, "refleksi"), data);
+      }
+      await logActivity(ME.uid, "simpan_refleksi");
+      showToast("Refleksi tersimpan!", "success");
+      renderRefleksi();
+    } catch (e) { showToast("Gagal simpan refleksi.", "error"); }
+  });
+}
+
+/* =========================================================
+ * CASTING / PERAN SAYA
+ * ========================================================= */
+async function renderCasting() {
+  const c = document.getElementById("tab-content");
+  c.innerHTML = `<div class="glass rounded-2xl p-5">${skeleton(3)}</div>`;
+
+  const snap = await getDocs(query(collection(db, "casting"), where("pemainUid", "==", ME.uid)));
+
+  if (snap.empty) {
+    c.innerHTML = `
+      <div class="glass rounded-2xl p-10 text-center">
+        <span class="material-symbols-outlined text-5xl text-on-surface-variant mb-3">theater_comedy</span>
+        <p class="text-sm text-on-surface-variant">Belum ada casting untuk Anda</p>
+        <p class="text-xs mt-1">Hubungi Sutradara untuk informasi casting</p>
+      </div>`;
+    return;
+  }
+
+  const cast = { id: snap.docs[0].id, ...snap.docs[0].data() };
+
+  c.innerHTML = `
+    <div class="glass rounded-2xl p-5 border-l-4 border-secondary">
+      <h3 class="font-headline font-semibold mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">theater_comedy</span> Peran Saya
+      </h3>
+      <div class="p-4 rounded-xl bg-secondary/10 border border-secondary/30">
+        <p class="text-xs text-secondary">TOKOH</p>
+        <p class="font-headline font-bold text-2xl mt-1">${esc(cast.tokoh)}</p>
+        <p class="text-sm text-on-surface-variant mt-2">${esc(cast.deskripsi || "Tidak ada deskripsi")}</p>
+        <div class="mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded-full ${
+            cast.status === "Final" ? "bg-green-600/20 text-green-400" :
+            cast.status === "Cadangan" ? "bg-yellow-500/20 text-yellow-400" : "bg-blue-500/20 text-blue-400"
+          }">${esc(cast.status)}</span>
+        </div>
+      </div>
+      <div class="mt-4 p-3 rounded-xl bg-surface-container text-xs">
+        <p class="font-medium mb-1">Tips Persiapkan Peran:</p>
+        <ul class="space-y-1 text-on-surface-variant pl-4 list-disc">
+          <li>Baca naskah lengkap minimal 3 kali</li>
+          <li>Buat profil karakter (umur, sifat, latar belakang)</li>
+          <li>Latihan dialog dengan rekan secara rutin</li>
+          <li>Diskusikan interpretasi dengan Sutradara</li>
+        </ul>
+      </div>
+    </div>`;
+}
+
+/* =========================================================
+ * INIT
+ * ========================================================= */
+(async function init() {
+  const { uid, profile } = await protectPage();
+  ME = { uid, profile };
+
+  if (profile.peran !== "Pemain") {
+    document.getElementById("tab-content").innerHTML = `
+      <div class="glass rounded-2xl p-10 text-center">
+        <span class="material-symbols-outlined text-5xl text-on-surface-variant mb-3">lock</span>
+        <p class="text-sm">Halaman ini khusus untuk Pemain.</p>
+        <a href="dashboard.html" class="inline-block mt-3 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm">Kembali</a>
+      </div>`;
+    return;
+  }
+
+  const menu = [
+    { icon: "dashboard", label: "Dashboard", href: "dashboard.html" },
+    { icon: "theater_comedy", label: "Panel Pemain", href: "pemain.html" },
+    { icon: "grade", label: "Nilai", href: "nilai.html" },
+    { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
+    { icon: "fact_check", label: "Absensi", href: "absensi.html" },
+    { icon: "checklist", label: "Checklist", href: "checklist.html" },
+    { icon: "campaign", label: "Broadcast", href: "broadcast.html" },
+    { icon: "groups", label: "Struktur", href: "struktur.html" },
+    { icon: "folder", label: "Arsip", href: "arsip.html" },
+    { icon: "support_agent", label: "Aduan", href: "aduan.html" },
+    { icon: "description", label: "Rapor", href: "rapor.html" },
+  ];
+  document.getElementById("sidebar-nav").innerHTML = menu.map((m) => `
+    <a href="${m.href}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-sm ${
+      m.href === "pemain.html" ? "bg-primary-container text-primary font-medium" : "text-on-surface-variant hover:bg-surface-container"
+    }"><span class="material-symbols-outlined text-xl">${m.icon}</span>${m.label}</a>`).join("");
+
+  document.getElementById("header-avatar").textContent = inisial(profile.nama);
+  const badge = document.getElementById("badge-role");
+  badge.className = `hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${warnaPeran(profile.peran)}`;
+  badge.textContent = profile.peran;
+
+  document.getElementById("bottom-nav").innerHTML = [
+    { icon: "dashboard", label: "Home", href: "dashboard.html" },
+    { icon: "grade", label: "Nilai", href: "nilai.html" },
+    { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
+    { icon: "checklist", label: "Tugas", href: "checklist.html" },
+    { icon: "groups", label: "Kerabat", href: "struktur.html" },
+  ].map((i) => `<a href="${i.href}" class="flex flex-col items-center justify-center py-2 text-[10px] gap-0.5 text-on-surface-variant"><span class="material-symbols-outlined text-xl">${i.icon}</span>${i.label}</a>`).join("");
+
+  const html = document.documentElement;
+  if (localStorage.getItem("theme") === "light") html.classList.remove("dark");
+  const btnT = document.getElementById("btn-theme"), iconT = document.getElementById("theme-icon");
+  const setIcon = () => (iconT.textContent = html.classList.contains("dark") ? "light_mode" : "dark_mode");
+  setIcon();
+  btnT.addEventListener("click", () => {
+    html.classList.toggle("dark");
+    localStorage.setItem("theme", html.classList.contains("dark") ? "dark" : "light");
+    setIcon();
+  });
+  document.getElementById("btn-logout").addEventListener("click", async () => {
+    if (confirm("Keluar?")) { await logActivity(ME.uid, "logout"); await signOut(auth); window.location.replace("index.html"); }
+  });
+  document.getElementById("btn-menu").addEventListener("click", () => {
+    const sb = document.getElementById("sidebar"); sb.classList.toggle("hidden"); sb.classList.toggle("flex");
+  });
+
+  initNotifikasi(uid, profile);
+  document.getElementById("btn-notif").addEventListener("click", bukaPanelNotif);
+
+  document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+
+  switchTab("naskah");
+})();
