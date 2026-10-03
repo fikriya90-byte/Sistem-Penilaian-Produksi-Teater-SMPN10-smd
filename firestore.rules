@@ -1,0 +1,156 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function userData() { return get(/databases/$(database)/documents/users/$(uid())).data; }
+    function role() { return userData().role; }
+    function peran() { return userData().peran; }
+    function isGuru() { return isSignedIn() && role() == 'guru'; }
+    function isAdmin() { return isSignedIn() && role() == 'admin'; }
+    function isSiswa() { return isSignedIn() && role() == 'siswa'; }
+    function isPengurus() {
+      return isSignedIn() && peran() in [
+        'Pimpinan Produksi','Sekretaris','Sutradara','Asisten Sutradara'
+      ];
+    }
+    function isKoordinator() {
+      return isSignedIn() && peran().matches('Koordinator.*');
+    }
+
+    // users
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && userId == uid();
+      allow update: if isSignedIn() && (userId == uid() || isGuru() || isAdmin());
+      allow delete: if isGuru() || isAdmin();
+    }
+
+    // classes
+    match /classes/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isGuru() || isAdmin();
+    }
+
+    // periodes
+    match /periodes/{p} {
+      allow read: if isSignedIn();
+      allow write: if isGuru() || isAdmin();
+    }
+
+    // rubriks
+    match /rubriks/{r} {
+      allow read: if isSignedIn();
+      allow write: if isGuru() || isAdmin();
+    }
+
+    // penilaian
+    match /penilaian/{pid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.nilai != null &&
+        request.resource.data.nilai.size() > 0;
+      allow update, delete: if isGuru() || isAdmin() ||
+        (isSignedIn() && resource.data.penilaiUid == uid() && resource.data.status == 'draft');
+    }
+
+    // revisiNilai
+    match /revisiNilai/{rid} {
+      allow read: if isGuru() || isAdmin();
+      allow create: if isSignedIn();
+    }
+
+    // jadwal
+    match /jadwal/{jid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() &&
+        (isGuru() || isAdmin() || peran() in [
+          'Pimpinan Produksi','Sekretaris','Sutradara','Asisten Sutradara'
+        ] || isKoordinator());
+      allow delete: if isGuru() || isAdmin();
+    }
+
+    // sesiAbsensi
+    match /sesiAbsensi/{sid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        isGuru() || isAdmin() ||
+        peran() in ['Pimpinan Produksi','Sekretaris','Sutradara','Asisten Sutradara'] ||
+        isKoordinator()
+      );
+      allow update: if isSignedIn();
+      allow delete: if isGuru() || isAdmin() ||
+        (isSignedIn() && resource.data.pembuatUid == uid());
+    }
+
+    // kehadiran
+    match /kehadiran/{kid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isGuru() || isAdmin();
+    }
+
+    // tugas
+    match /tugas/{tid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // tugasProgress
+    match /tugasProgress/{tid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // notifikasi
+    match /notifikasi/{nid} {
+      allow read, write: if isSignedIn();
+    }
+
+    // broadcast
+    match /broadcast/{bid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        isGuru() || isAdmin() ||
+        peran() in ['Pimpinan Produksi','Sekretaris','Sutradara','Asisten Sutradara','Bendahara'] ||
+        isKoordinator()
+      );
+    }
+
+    // dokumen
+    match /dokumen/{did} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // informasi
+    match /informasi/{iid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // aduan
+    match /aduan/{aid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isGuru() || isAdmin();
+      allow delete: if isGuru() || isAdmin();
+    }
+
+    // bookingAlat
+    match /bookingAlat/{bid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isGuru() || isAdmin();
+    }
+
+    // logs
+    match /logs/{lid} {
+      allow read: if isGuru() || isAdmin();
+      allow create: if isSignedIn();
+      allow delete: if false; // log tidak boleh dihapus
+    }
+  }
+}
