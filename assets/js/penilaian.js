@@ -813,6 +813,7 @@ function switchTab(tab) {
   if (tab === "input") renderBeriNilai();
   if (tab === "rekap") renderRekap();
   if (tab === "moderasi") renderModerasi();
+  if (tab === "riwayat") renderRiwayatRevisi();
 }
 
 /* =========================================================
@@ -1036,4 +1037,56 @@ function bukaBatchForm(uids, daftarSiswa) {
     if (!confirm(`Finalisasi ${siswaTerpilih.length} nilai sekaligus?`)) return;
     simpanBatch("final");
   });
+}
+async function renderRiwayatRevisi() {
+  const c = document.getElementById("tab-content");
+  if (!["guru", "admin"].includes(ME.profile.role)) {
+    c.innerHTML = `<div class="glass rounded-2xl p-10 text-center"><span class="material-symbols-outlined text-5xl text-on-surface-variant mb-3">lock</span><p class="text-sm">Hanya guru/admin.</p></div>`;
+    return;
+  }
+  c.innerHTML = `<div class="glass rounded-2xl p-5">${skeleton(5)}</div>`;
+
+  try {
+    const snap = await getDocs(query(collection(db, "revisiNilai"), orderBy("waktu", "desc"), limit(50)));
+    if (snap.empty) {
+      c.innerHTML = `<div class="glass rounded-2xl p-10 text-center">
+        <span class="material-symbols-outlined text-5xl text-on-surface-variant mb-3">history</span>
+        <p class="text-sm text-on-surface-variant">Belum ada riwayat revisi</p>
+      </div>`;
+      return;
+    }
+
+    c.innerHTML = `
+    <div class="glass rounded-2xl p-5">
+      <h3 class="font-headline font-semibold mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">history</span> Riwayat Revisi Nilai
+      </h3>
+      <div class="space-y-3">
+        ${snap.docs.map((d) => {
+          const r = d.data();
+          return `
+          <div class="p-4 rounded-xl bg-surface-container border-l-4 border-secondary">
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <p class="text-sm font-medium">📝 ${esc(r.alasan)}</p>
+              <span class="text-[10px] text-on-surface-variant">${r.waktu ? waktuRelatif(r.waktu) : "-"}</span>
+            </div>
+            <p class="text-xs text-on-surface-variant mb-2">Penilaian ID: <code class="text-primary">${esc(r.penilaianId?.slice(0, 12))}...</code></p>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div class="p-2 rounded-lg bg-error/10 border border-error/30">
+                <p class="text-error font-medium mb-1">Versi Lama</p>
+                ${(r.versiLama || []).map((n) => `<p>• ${esc(n.kriteria)}: <b>${n.skor}</b></p>`).join("")}
+              </div>
+              <div class="p-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                <p class="text-green-400 font-medium mb-1">Versi Baru</p>
+                ${(r.versiBaru || []).map((n) => `<p>• ${esc(n.kriteria)}: <b>${n.skor}</b></p>`).join("")}
+              </div>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+  } catch (e) {
+    console.error(e);
+    c.innerHTML = `<div class="glass rounded-2xl p-10 text-center"><p class="text-sm">Gagal memuat riwayat.</p></div>`;
+  }
 }
