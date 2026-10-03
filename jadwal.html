@@ -47,33 +47,21 @@ tailwind.config = { darkMode: 'class', theme: { extend: {
 
 <main class="relative z-10 pt-16 lg:pl-72 pb-24 lg:pb-8">
   <div class="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
-    <!-- Kalender -->
-    <div class="glass rounded-2xl p-5">
-      <div class="flex items-center justify-between mb-4">
-        <button id="prev-month" class="p-2 rounded-lg hover:bg-surface-container"><span class="material-symbols-outlined">chevron_left</span></button>
-        <h3 id="kalender-judul" class="font-headline font-semibold text-lg"></h3>
-        <button id="next-month" class="p-2 rounded-lg hover:bg-surface-container"><span class="material-symbols-outlined">chevron_right</span></button>
-      </div>
-      <div class="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-on-surface-variant font-medium">
-        <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
-      </div>
-      <div id="kalender-grid" class="grid grid-cols-7 gap-1"></div>
-      <div class="flex flex-wrap gap-3 mt-4 text-[10px]">
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span>Rapat</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span>Latihan</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span>Gladi</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500"></span>Pementasan</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span>Evaluasi</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span>Produksi</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-pink-500"></span>Fitting</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-500"></span>Briefing</span>
-      </div>
+
+    <!-- Tabs -->
+    <div class="glass rounded-2xl p-1 inline-flex gap-1 flex-wrap">
+      <button data-tab="kalender" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition">📅 Kalender</button>
+      <button data-tab="master" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition">🗓️ Master Schedule</button>
+      <button data-tab="booking" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition">🎤 Booking Alat</button>
     </div>
 
+    <div id="tab-content"></div>
+  </div>
+</main>
     <!-- Daftar Jadwal -->
     <div class="glass rounded-2xl p-5">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-headline font-semibold">📅 Jadwal Terdekat</h3>
+        <h3 class="font-headline font-semibold">Jadwal Terdekat</h3>
         <button id="btn-tambah-jadwal" class="hidden px-3 py-2 rounded-lg bg-primary text-on-primary text-xs font-medium">+ Tambah Jadwal</button>
       </div>
       <div id="jadwal-list" class="space-y-2"></div>
@@ -82,7 +70,7 @@ tailwind.config = { darkMode: 'class', theme: { extend: {
     <!-- Booking Alat -->
     <div class="glass rounded-2xl p-5">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-headline font-semibold">🎤 Booking Alat</h3>
+        <h3 class="font-headline font-semibold">Booking Alat</h3>
         <button id="btn-booking" class="px-3 py-2 rounded-lg bg-secondary-container text-white text-xs font-medium">+ Booking</button>
       </div>
       <div id="booking-list" class="space-y-2"></div>
