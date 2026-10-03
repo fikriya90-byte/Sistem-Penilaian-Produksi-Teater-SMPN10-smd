@@ -1,45 +1,69 @@
-# 🎭 SP-PPT — Sistem Penilaian & Manajemen Produksi Teater
+# SP-PPT — Sistem Penilaian & Manajemen Produksi Teater
 
-**SMP Negeri 10 Samarinda — Kelas IX — Mata Pelajaran Seni Budaya & Teater**
+SMP Negeri 10 Samarinda · Kelas IX · Seni Budaya & Teater
 
-PWA untuk mengelola produksi pementasan teater siswa dengan penilaian multi-penilai (Guru 50%, Ketua 30%, Rekan 20%).
+## Fitur Lengkap
 
----
+### Fondasi
+- Login multi-role (Siswa/Guru/Admin) dengan 20+ peran
+- Dashboard dinamis per role
+- PWA offline-ready, dark-mode-first
+- Real-time sync via Firestore
 
-## 📦 Fitur Utama
+### Penilaian
+- 4 tahapan: Persiapan, Pelaksanaan, Pertunjukan, Pasca
+- 3 penilai: Guru 50%, Ketua 30%, Rekan 20%
+- Auto-normalisasi bobot
+- Batch penilaian
+- Revisi nilai dengan history
+- Moderasi + deteksi anomali
+- Rapor PDF dengan kop resmi + QR
 
-- ✅ Login multi-role (Siswa/Guru/Admin)
-- ✅ Dashboard dinamis per peran (20+ peran)
-- ✅ Nilai Saya + Radar Chart + Rapor PDF
-- ✅ Form Penilaian slider 1-4 (Guru/Ketua/Koordinator)
-- ✅ Jadwal & Kalender + Booking Alat
-- ✅ Absensi dengan aturan ketat pembuat sesi
-- ✅ Checklist Tugas + Kanban Board
-- ✅ Struktur Kerabat Kerja + Kontak WA
-- ✅ Arsip Dokumen + Informasi Umum
-- ✅ Aduan + WA Follow-up
-- ✅ PWA Offline-Ready
-- ✅ Dark Mode First
+### Manajemen Produksi
+- Broadcast per peran + WA
+- Notifikasi real-time 7 jenis
+- Jadwal + Kalender + Master Schedule timeline
+- Booking alat dengan deteksi bentrok + approval
+- Absensi dengan aturan pembuat ketat + statistik + grid presensi
+- Checklist dengan upload bukti, verifikasi, rating, kanban drag-drop
+- Struktur kerabat kerja + share WA
+- Arsip dokumen + informasi umum
+- Aduan + WA follow-up + anonim
 
----
+### Panel Peran Khusus
+- **Sutradara**: Visi artistik, casting, catatan harian, penilaian pemain
+- **Asisten**: Prompt book, catatan harian, standby cue live
+- **Koordinator**: 6 divisi (Perlengkapan, Pubdok, Panggung, Rias, Busana, Musik)
+- **Pemain**: Naskah digital, latihan dialog 10 langkah, rekam suara, refleksi
 
-## 🚀 Setup Firebase
+### Admin/Guru
+- Export XLSX multi-sheet
+- Import siswa dari Excel/CSV
+- Backup/Restore JSON
+- Kelola siswa, rubrik, periode
+- Log sistem
 
-1. Buka [Firebase Console](https://console.firebase.google.com/)
-2. Pilih project: **penilaian-proyek-teater-siswa**
-3. Aktifkan:
-   - **Authentication** → Sign-in method → **Email/Password** → Enable
-   - **Firestore Database** → Create database → Start in **production mode**
-   - **Storage** → Get started
-4. Salin `firestore.rules` ke tab **Rules** di Firestore, klik **Publish**.
+### Pengaturan
+- Tema: Terang/Gelap/Otomatis
+- Warna aksen: 6 pilihan
+- Mode Aksesibilitas (font besar, kontras tinggi)
+- Mode Fokus
+- Mode Hemat Data
+- Bahasa: ID/EN/Jawa
+- Install PWA
 
-### Konfigurasi Firebase (sudah ada di `firebase-init.js`)
-```js
-const firebaseConfig = {
-  apiKey: "AIzaSyDczk0n-4QvvwTDikDBnuTkRX_SlXIV9JQ",
-  authDomain: "penilaian-proyek-teater-siswa.firebaseapp.com",
-  projectId: "penilaian-proyek-teater-siswa",
-  storageBucket: "penilaian-proyek-teater-siswa.firebasestorage.app",
-  messagingSenderId: "278312873930",
-  appId: "1:278312873930:web:0de00becefffd9e4a2e933"
-};
+## Setup Firebase
+
+1. Buka [Firebase Console](https://console.firebase.google.com/) project `penilaian-proyek-teater-siswa`
+2. Aktifkan: Authentication (Email/Password), Firestore, Storage
+3. Copy `firestore.rules` ke tab Rules Firestore, klik Publish
+4. Buat composite index (jika diminta saat runtime):
+   - `notifikasi`: penerimaUid, waktu (desc)
+   - `bookingAlat`: alat, waktuMulai (desc)
+   - `tugas`: autoPeran, tahapan
+
+## Buat Akun Guru Pertama
+
+1. Firebase Auth > Add User: `guru@sekolah.id` / password
+2. Copy UID
+3. Firestore > collection `users` > Add doc dengan ID = UID:
