@@ -1,0 +1,32 @@
+{
+  "name": "SP-PPT — Sistem Penilaian & Manajemen Produksi Teater",
+  "short_name": "SP-PPT",
+  "description": "Aplikasi penilaian & manajemen produksi teater SMP Negeri 10 Samarinda",
+  "start_url": "/dashboard.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#101415",
+  "background_color": "#101415",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "assets/img/logo-sekolah.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/img/logo-sekolah.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/img/logo-mapel.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
