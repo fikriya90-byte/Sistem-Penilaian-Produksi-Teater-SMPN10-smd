@@ -182,6 +182,18 @@ function cardBroadcastCepat(profile) {
       📢 Buat Broadcast Baru
     </a>
   </div>`;
+  document.getElementById("content").innerHTML = `
+  ${cardProfil(profile)}
+  ${specialCards}
+  ${cardProgresProduksi()}
+  ${cardBroadcastCepat(profile)}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    ${cardJadwalTerdekat(jadwal)}
+    ${cardDeadline(tugas)}
+  </div>
+  ${cardQuickActions(profile)}
+  ...
+`;
 }
 function cardProgresProduksi() {
   return `
