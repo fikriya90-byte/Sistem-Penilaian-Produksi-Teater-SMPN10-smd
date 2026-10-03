@@ -1,44 +1,20 @@
 /**
- * SP-PPT — Autentikasi & Sesi
- * Login multi-role (siswa/guru/admin), registrasi, logout, auto-logout 30 menit.
+ * SP-PPT — Autentikasi Manual (Tanpa Firebase Auth)
+ * Login dengan query langsung ke Firestore:
+ * - Guru: koleksi `teachers`
+ * - Siswa: koleksi `classes` → array `students`
  */
 
+import { db } from "./firebase-init.js";
 import {
-  auth,
-  db,
-  PERAN_DIVISI,
-} from "./firebase-init.js";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  serverTimestamp,
-  addDoc,
+  collection, getDocs, query, where, doc, updateDoc,
+  arrayUnion, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { showToast, openModal, closeModal, logActivity } from "./utils.js";
+import { saveSession } from "./router.js";
 
-/* =========================================================
- * STATE
- * ========================================================= */
 let activeRole = "siswa";
-let currentUser = null;
-let userProfile = null;
 
-/* =========================================================
- * UI: TAB SWITCH
- * ========================================================= */
 const tabs = document.querySelectorAll(".role-tab");
 const labelIdentitas = document.getElementById("label-identitas");
 const inputIdentitas = document.getElementById("input-identitas");
@@ -57,8 +33,9 @@ function setRole(role) {
     t.classList.toggle("text-indigo-700", active);
     t.classList.toggle("text-gray-600", !active);
   });
+
   if (role === "siswa") {
-    labelIdentitas.textContent = "Email / No. WhatsApp / NIS";
+    labelIdentitas.textContent = "Email / No. WhatsApp";
     inputIdentitas.placeholder = "nama@email.com atau 08xxxxxxxxxx";
     fieldKelas.classList.remove("hidden");
     fieldPasskey.classList.add("hidden");
@@ -84,23 +61,17 @@ function setRole(role) {
 tabs.forEach((t) => t.addEventListener("click", () => setRole(t.dataset.role)));
 setRole("siswa");
 
-/* =========================================================
- * TOGGLE PASSWORD
- * ========================================================= */
+/* Toggle Password */
 document.getElementById("toggle-password")?.addEventListener("click", () => {
   const inp = document.getElementById("input-password");
   inp.type = inp.type === "password" ? "text" : "password";
 });
 
-/* =========================================================
- * LUPAS PASSWORD & MODAL
- * ========================================================= */
+/* Modal */
 document.getElementById("btn-lupa")?.addEventListener("click", () => openModal("modal-lupa"));
 document.getElementById("btn-register")?.addEventListener("click", () => openModal("modal-register"));
 
-/* =========================================================
- * NORMALISASI IDENTITAS (email/wa/nis)
- * ========================================================= */
+/* Normalisasi WA */
 function normalisasiWA(wa) {
   if (!wa) return "";
   let d = String(wa).replace(/\D/g, "");
@@ -108,27 +79,37 @@ function normalisasiWA(wa) {
   return d;
 }
 
-async function cariUserByIdentitas(identitas) {
-  const idLower = identitas.trim().toLowerCase();
-  const isEmail = idLower.includes("@");
-  const usersRef = collection(db, "users");
+/* =========================================================
+ * CARI USER DI STRUKTUR LAMA
+ * ========================================================= */
+async function cariUser(identitas) {
+  const input = identitas.trim().toLowerCase();
+  const waNorm = normalisasiWA(input);
 
-  // Coba email
-  if (isEmail) {
-    const snap = await getDocs(query(usersRef, where("email", "==", idLower)));
-    if (!snap.empty) return snap.docs[0].data();
+  // 1. Cek di teachers
+  const tSnap = await getDocs(collection(db, "teachers"));
+  for (const d of tSnap.docs) {
+    const t = d.data();
+    const tEmail = (t.email || "").toLowerCase();
+    const tWA = normalisasiWA(t.phone || "");
+    if (tEmail === input || (waNorm && tWA === waNorm)) {
+      return { type: "guru", uid: `teacher_${tEmail}`, data: t };
+    }
   }
 
-  // Coba WA
-  const wa = normalisasiWA(idLower);
-  if (wa) {
-    const snap = await getDocs(query(usersRef, where("whatsapp", "==", wa)));
-    if (!snap.empty) return snap.docs[0].data();
+  // 2. Cek di classes.students
+  const cSnap = await getDocs(collection(db, "classes"));
+  for (const d of cSnap.docs) {
+    const k = d.data();
+    const students = k.students || [];
+    for (const s of students) {
+      const sEmail = (s.email || "").toLowerCase();
+      const sWA = normalisasiWA(s.phone || "");
+      if (sEmail === input || (waNorm && sWA === waNorm)) {
+        return { type: "siswa", uid: `student_${sEmail}`, data: s, kelasData: k, kelasDocId: d.id };
+      }
+    }
   }
-
-  // Coba NIS
-  const snap3 = await getDocs(query(usersRef, where("nis", "==", identitas.trim())));
-  if (!snap3.empty) return snap3.docs[0].data();
 
   return null;
 }
@@ -143,53 +124,60 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
   btn.innerHTML = `<span class="material-symbols-outlined text-lg animate-spin">progress_activity</span> Memproses...`;
 
   try {
-    let email = inputIdentitas.value.trim().toLowerCase();
+    const identitas = inputIdentitas.value.trim();
     const password = document.getElementById("input-password").value;
-    const kelas = document.getElementById("input-kelas").value;
     const passkey = document.getElementById("input-passkey")?.value;
 
-    // Jika bukan email → cari user dulu
-    if (!email.includes("@")) {
-      const user = await cariUserByIdentitas(email);
-      if (!user || !user.email) throw new Error("Akun tidak ditemukan. Periksa kembali.");
-      email = user.email;
-    }
+    if (!identitas || !password) throw new Error("Isi email & password.");
 
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const uid = cred.user.uid;
+    const found = await cariUser(identitas);
+    if (!found) throw new Error("Akun tidak ditemukan. Periksa email/WA Anda.");
 
-    // Ambil profil user
-    const userSnap = await getDoc(doc(db, "users", uid));
-    if (!userSnap.exists()) throw new Error("Data profil tidak ditemukan. Hubungi guru.");
-    const profile = userSnap.data();
+    const storedPass = found.data.password || "";
+    if (storedPass !== password) throw new Error("Password salah.");
 
-    // Validasi role sesuai tab
-    if (activeRole === "siswa" && profile.role !== "siswa")
-      throw new Error("Akun ini bukan akun siswa.");
-    if (activeRole === "guru" && profile.role !== "guru")
-      throw new Error("Akun ini bukan akun guru.");
-    if (activeRole === "admin" && profile.role !== "admin")
-      throw new Error("Akun ini bukan akun admin.");
+    if (activeRole === "siswa" && found.type !== "siswa") throw new Error("Ini akun guru, bukan siswa.");
+    if (activeRole === "guru" && found.type !== "guru") throw new Error("Ini akun siswa, bukan guru.");
 
-    // Admin butuh passkey
     if (activeRole === "admin") {
       const PASSKEY = "SPPT-ADMIN-2025";
       if (passkey !== PASSKEY) throw new Error("Passkey admin salah.");
+      if (found.type !== "guru") throw new Error("Admin harus akun guru.");
     }
 
-    // Update lastLogin
-    await updateDoc(doc(db, "users", uid), { lastLogin: serverTimestamp() });
-    await logActivity(uid, "login", `role=${activeRole}`);
+    let profile;
+    if (found.type === "guru") {
+      profile = {
+        role: activeRole === "admin" ? "admin" : "guru",
+        peran: "Guru Pembina",
+        nama: found.data.name || "Guru",
+        email: found.data.email || "",
+        whatsapp: found.data.phone || "",
+        kelas: "",
+        divisi: "Guru",
+      };
+    } else {
+      const k = found.kelasData;
+      profile = {
+        role: "siswa",
+        peran: found.data.peran || "Pemain",
+        nama: found.data.name || "Siswa",
+        email: found.data.email || "",
+        whatsapp: found.data.phone || "",
+        kelas: k.name || "",
+        kelasId: found.kelasDocId || "",
+        divisi: found.data.divisi || "Pemeran",
+      };
+    }
+
+    saveSession(found.uid, profile);
+    await logActivity(found.uid, "login", `role=${activeRole}`);
 
     showToast("Login berhasil! Mengalihkan...", "success");
     setTimeout(() => (window.location.href = "dashboard.html"), 800);
   } catch (err) {
     console.error(err);
-    let msg = err.message || "Login gagal.";
-    if (err.code === "auth/invalid-credential") msg = "Email atau password salah.";
-    if (err.code === "auth/user-not-found") msg = "Akun tidak ditemukan.";
-    if (err.code === "auth/too-many-requests") msg = "Terlalu banyak percobaan. Coba lagi nanti.";
-    showToast(msg, "error", 5000);
+    showToast(err.message || "Login gagal.", "error", 5000);
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<span class="material-symbols-outlined text-lg">login</span><span id="btn-login-text">Masuk</span>`;
@@ -197,7 +185,7 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
 });
 
 /* =========================================================
- * REGISTRASI SISWA
+ * REGISTRASI SISWA — Tambah ke classes.students
  * ========================================================= */
 document.getElementById("form-register")?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -208,95 +196,76 @@ document.getElementById("form-register")?.addEventListener("submit", async (e) =
   const wa = normalisasiWA(document.getElementById("reg-wa").value.trim());
   const pass = document.getElementById("reg-pass").value;
   const pass2 = document.getElementById("reg-pass2").value;
-  const peran = document.getElementById("reg-peran").value;
 
   if (pass !== pass2) return showToast("Password tidak cocok.", "error");
-  if (pass.length < 8) return showToast("Password minimal 8 karakter.", "error");
+  if (pass.length < 6) return showToast("Password minimal 6 karakter.", "error");
+  if (!nama || !email) return showToast("Nama & email wajib diisi.", "error");
 
   try {
-    // Validasi kode kelas
-    const kSnap = await getDocs(query(collection(db, "classes"), where("kodeKelas", "==", kode)));
-    if (kSnap.empty) throw new Error("Kode kelas tidak ditemukan.");
-    const kelasDoc = kSnap.docs[0];
+    const q = query(collection(db, "classes"), where("code", "==", kode));
+    const snap = await getDocs(q);
+    if (snap.empty) throw new Error("Kode kelas tidak ditemukan.");
+
+    const kelasDoc = snap.docs[0];
     const kelasData = kelasDoc.data();
 
-    // Cek email unik
-    const emailSnap = await getDocs(query(collection(db, "users"), where("email", "==", email)));
-    if (!emailSnap.empty) throw new Error("Email sudah terdaftar.");
+    const cekUser = await cariUser(email);
+    if (cekUser) throw new Error("Email sudah terdaftar.");
 
-    // Cek WA unik
-    const waSnap = await getDocs(query(collection(db, "users"), where("whatsapp", "==", wa)));
-    if (!waSnap.empty) throw new Error("No. WhatsApp sudah terdaftar.");
-
-    // Buat auth user
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    const uid = cred.user.uid;
-
-    // Simpan profil
-    await setDoc(doc(db, "users", uid), {
-      role: "siswa",
-      peran,
-      divisi: PERAN_DIVISI[peran] || "Pemeran",
-      nama,
-      nis,
-      kelas: kelasData.nama,
-      kelasId: kelasDoc.id,
+    const newStudent = {
+      id: `id_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+      name: nama,
       email,
-      whatsapp: wa,
-      fotoUrl: "",
-      createdAt: serverTimestamp(),
-      lastLogin: serverTimestamp(),
+      password: pass,
+      phone: wa,
+      nis,
+      registeredAt: Date.now(),
+    };
+
+    await updateDoc(doc(db, "classes", kelasDoc.id), {
+      students: arrayUnion(newStudent),
     });
 
-    await logActivity(uid, "register", `peran=${peran}`);
+    const uid = `student_${email}`;
+    const profile = {
+      role: "siswa",
+      peran: "Pemain",
+      nama,
+      email,
+      whatsapp: wa,
+      kelas: kelasData.name || "",
+      kelasId: kelasDoc.id,
+      divisi: "Pemeran",
+    };
+    saveSession(uid, profile);
+    await logActivity(uid, "register");
 
     showToast("Registrasi berhasil! Mengalihkan...", "success");
     setTimeout(() => (window.location.href = "dashboard.html"), 1000);
   } catch (err) {
     console.error(err);
-    let msg = err.message;
-    if (err.code === "auth/email-already-in-use") msg = "Email sudah digunakan.";
-    showToast(msg, "error", 5000);
+    showToast(err.message || "Registrasi gagal.", "error", 5000);
   }
 });
 
-/* =========================================================
- * SESSION & AUTO-LOGOUT 30 MENIT
- * ========================================================= */
-const IDLE_LIMIT = 30 * 60 * 1000; // 30 menit
-let idleTimer;
-
-function resetIdle() {
-  clearTimeout(idleTimer);
-  idleTimer = setTimeout(async () => {
-    await signOut(auth);
-    showToast("Sesi berakhir karena tidak ada aktivitas.", "warning");
-    setTimeout(() => (window.location.href = "index.html"), 1000);
-  }, IDLE_LIMIT);
+/* Clear session jika ada ?logout=1 */
+if (location.search.includes("logout=1")) {
+  localStorage.removeItem("sppt_session");
+  history.replaceState({}, "", location.pathname);
 }
 
+/* Idle timeout 30 menit */
+const IDLE_LIMIT = 30 * 60 * 1000;
+let idleTimer;
+function resetIdle() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    localStorage.removeItem("sppt_session");
+    showToast("Sesi berakhir karena tidak ada aktivitas.", "warning");
+    setTimeout(() => (window.location.href = "index.html?logout=1"), 1000);
+  }, IDLE_LIMIT);
+}
 ["click", "keydown", "mousemove", "touchstart", "scroll"].forEach((ev) =>
   document.addEventListener(ev, resetIdle, { passive: true })
 );
-
-/* =========================================================
- * AUTH STATE OBSERVER
- * ========================================================= */
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    currentUser = user;
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) userProfile = snap.data();
-    resetIdle();
-
-    // Jika sudah login dan berada di halaman login → redirect
-    if (window.location.pathname.endsWith("index.html") || window.location.pathname === "/") {
-      window.location.href = "dashboard.html";
-    }
-  } else {
-    currentUser = null;
-    userProfile = null;
-  }
-});
-
-export { currentUser, userProfile };
+resetIdle();
