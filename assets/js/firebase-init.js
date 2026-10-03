@@ -1,18 +1,12 @@
 /**
  * SP-PPT — Firebase Initialization
- * Konfigurasi resmi Firebase project: penilaian-proyek-teater-siswa
- * JANGAN GANTI konfigurasi ini tanpa izin admin.
+ * Hanya inisialisasi Firestore (tidak pakai Firebase Auth).
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore,
-  enableIndexedDbPersistence,
-  initializeFirestore,
-  CACHE_SIZE_UNLIMITED,
+  initializeFirestore, enableIndexedDbPersistence,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDczk0n-4QvvwTDikDBnuTkRX_SlXIV9JQ",
@@ -23,56 +17,27 @@ const firebaseConfig = {
   appId: "1:278312873930:web:0de00becefffd9e4a2e933",
 };
 
-// Inisialisasi Firebase
 export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+export const db = initializeFirestore(app, {});
 
-// Aktifkan persistence agar sesi tersimpan di localStorage
-setPersistence(auth, browserLocalPersistence).catch((err) => {
-  console.warn("[Firebase] Gagal set persistence:", err);
-});
-
-// Firestore dengan cache offline
-export const db = initializeFirestore(app, {
-  cache: { tabManager: undefined },
-});
-
-// Aktifkan IndexedDB persistence untuk offline mode
 enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === "failed-precondition") {
-    console.warn("[Firestore] Persistence gagal: multiple tabs.");
-  } else if (err.code === "unimplemented") {
-    console.warn("[Firestore] Persistence tidak didukung browser.");
-  }
+  if (err.code === "failed-precondition") console.warn("[Firestore] Persistence gagal: multiple tabs.");
+  else if (err.code === "unimplemented") console.warn("[Firestore] Persistence tidak didukung.");
 });
 
-export const storage = getStorage(app);
-
-// Daftar peran resmi (17 peran siswa + Guru + Admin)
+// Daftar peran resmi
 export const PERAN_LIST = [
-  "Pimpinan Produksi",
-  "Sekretaris",
-  "Bendahara",
-  "Sutradara",
-  "Asisten Sutradara",
-  "Koordinator Perlengkapan",
-  "Koordinator Publikasi & Dokumentasi",
-  "Koordinator Tata Panggung",
-  "Koordinator Tata Rias",
-  "Koordinator Tata Busana",
-  "Koordinator Tata Musik & Suara",
-  "Anggota Perlengkapan",
-  "Anggota Publikasi & Dokumentasi",
-  "Anggota Tata Panggung",
-  "Anggota Tata Rias",
-  "Anggota Tata Busana",
-  "Anggota Tata Musik & Suara",
-  "Pemain",
-  "Guru Pembina",
-  "Admin",
+  "Pimpinan Produksi", "Sekretaris", "Bendahara",
+  "Sutradara", "Asisten Sutradara",
+  "Koordinator Perlengkapan", "Koordinator Publikasi & Dokumentasi",
+  "Koordinator Tata Panggung", "Koordinator Tata Rias",
+  "Koordinator Tata Busana", "Koordinator Tata Musik & Suara",
+  "Anggota Perlengkapan", "Anggota Publikasi & Dokumentasi",
+  "Anggota Tata Panggung", "Anggota Tata Rias",
+  "Anggota Tata Busana", "Anggota Tata Musik & Suara",
+  "Pemain", "Guru Pembina", "Admin",
 ];
 
-// Peta peran → divisi
 export const PERAN_DIVISI = {
   "Pimpinan Produksi": "Pengurus Inti",
   Sekretaris: "Pengurus Inti",
