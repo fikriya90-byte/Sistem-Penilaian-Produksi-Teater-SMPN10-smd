@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aduan — SP-PPT</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: {
+  colors: { surface:'#101415','surface-container-low':'#191c1e','surface-container':'#1d2022','surface-container-high':'#272a2c','surface-container-highest':'#323537','on-surface':'#e0e3e5','on-surface-variant':'#c8c5d0','outline-variant':'#47464f',primary:'#c4c1fb','primary-container':'#1e1b4b',secondary:'#ffb77d','tertiary':'#b4c5ff','error':'#ffb4ab' },
+  fontFamily: { headline: ['"Plus Jakarta Sans"','sans-serif'], body: ['Inter','sans-serif'] },
+}}};
+</script>
+<link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="font-body bg-surface text-on-surface min-h-screen">
+
+<div class="fixed inset-0 z-0 pointer-events-none">
+  <img src="https://iili.io/nJ1Rcj1.png" alt="" class="w-full h-full object-cover opacity-20" />
+  <div class="absolute inset-0" style="background: linear-gradient(to bottom, rgba(16,20,21,0.95), rgba(16,20,21,0.98));"></div>
+</div>
+
+<aside id="sidebar" class="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-72 glass z-40 border-r border-outline-variant/40">
+  <div class="p-5 border-b border-outline-variant/40 flex items-center gap-3">
+    <img src="https://iili.io/nBiviCX.png" alt="" class="w-10 h-10" />
+    <div><h1 class="font-headline font-bold text-lg">SP-PPT</h1><p class="text-xs text-on-surface-variant">SMPN 10 Samarinda</p></div>
+  </div>
+  <nav id="sidebar-nav" class="flex-1 p-3 space-y-1 overflow-y-auto"></nav>
+  <div class="p-3 border-t border-outline-variant/40">
+    <button id="btn-logout" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-error/10 text-error text-sm"><span class="material-symbols-outlined text-xl">logout</span> Keluar</button>
+  </div>
+</aside>
+
+<header class="fixed top-0 right-0 left-0 lg:left-72 h-16 glass z-30 border-b border-outline-variant/40 flex items-center justify-between px-4 gap-3">
+  <div class="flex items-center gap-3">
+    <button id="btn-menu" class="lg:hidden p-2 rounded-lg hover:bg-surface-container"><span class="material-symbols-outlined">menu</span></button>
+    <h2 class="font-headline font-semibold text-lg">Aduan & Bantuan</h2>
+  </div>
+  <div class="flex items-center gap-2">
+    <div id="badge-role" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border"></div>
+    <button id="btn-theme" class="p-2 rounded-lg hover:bg-surface-container"><span class="material-symbols-outlined" id="theme-icon">dark_mode</span></button>
+    <div id="header-avatar" class="w-9 h-9 rounded-full bg-primary-container text-primary flex items-center justify-center font-semibold text-sm border border-outline-variant/40"></div>
+  </div>
+</header>
+
+<main class="relative z-10 pt-16 lg:pl-72 pb-24 lg:pb-8">
+  <div class="p-4 lg:p-6 max-w-4xl mx-auto space-y-5">
+
+    <!-- Form Aduan -->
+    <div class="glass rounded-2xl p-5">
+      <h3 class="font-headline font-semibold mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">campaign</span> Kirim Aduan
+      </h3>
+      <form id="form-aduan" class="space-y-3">
+        <select id="a-kategori" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm">
+          <option>Akademik</option><option>Teknis</option><option>Sosial</option>
+          <option>Keamanan</option><option>Bullying</option><option>Lainnya</option>
+        </select>
+        <input id="a-judul" required placeholder="Judul aduan" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm" />
+        <textarea id="a-deskripsi" required rows="4" placeholder="Deskripsi masalah..." class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm"></textarea>
+        <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="a-anonim" class="rounded accent-primary" /> Kirim sebagai ANONIM (hanya guru yang lihat identitas)</label>
+        <button type="submit" class="w-full py-2.5 rounded-lg bg-secondary text-on-secondary font-medium text-sm">Kirim Aduan</button>
+      </form>
+      <div id="wa-followup" class="hidden mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-xs">
+        <p class="text-green-400 font-medium mb-2">Aduan tersimpan! Kirim juga ke WhatsApp guru?</p>
+        <button id="btn-wa-aduan" class="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">📱 Kirim via WA</button>
+      </div>
+    </div>
+
+    <!-- Daftar Aduan -->
+    <div class="glass rounded-2xl p-5">
+      <h3 class="font-headline font-semibold mb-4">📬 Aduan Saya</h3>
+      <div id="aduan-list" class="space-y-2"></div>
+    </div>
+  </div>
+</main>
+
+<nav id="bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 glass border-t border-outline-variant/40 z-30 bottom-nav"></nav>
+<div id="toast-container" class="fixed top-20 right-4 z-[100] space-y-2"></div>
+
+<script type="module">
+import { auth, db } from "./assets/js/firebase-init.js";
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { protectPage } from "./assets/js/router.js";
+import { showToast, esc, warnaPeran, inisial, logActivity, waktuRelatif } from "./assets/js/utils.js";
+
+let ME, ADUAN_TERAKHIR = null;
+const WA_GURU = "6281234567890"; // Ganti nomor guru
+
+(async function () {
+  const { uid, profile } = await protectPage();
+  ME = { uid, profile };
+
+  const menu = [
+    { icon: "dashboard", label: "Dashboard", href: "dashboard.html" },
+    { icon: "grade", label: "Nilai", href: "nilai.html" },
+    { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
+    { icon: "fact_check", label: "Absensi", href: "absensi.html" },
+    { icon: "checklist", label: "Checklist", href: "checklist.html" },
+    { icon: "groups", label: "Struktur", href: "struktur.html" },
+    { icon: "folder", label: "Arsip", href: "arsip.html" },
+    { icon: "support_agent", label: "Aduan", href: "aduan.html" },
+    { icon: "description", label: "Rapor", href: "rapor.html" },
+  ];
+  document.getElementById("sidebar-nav").innerHTML = menu.map((m) => `
+    <a href="${m.href}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-sm ${m.href === "aduan.html" ? "bg-primary-container text-primary font-medium" : "text-on-surface-variant hover:bg-surface-container"}">
+      <span class="material-symbols-outlined text-xl">${m.icon}</span>${m.label}
+    </a>`).join("");
+  document.getElementById("header-avatar").textContent = inisial(profile.nama);
+  const badge = document.getElementById("badge-role");
+  badge.className = `hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${warnaPeran(profile.peran)}`;
+  badge.textContent = profile.peran;
+  document.getElementById("bottom-nav").innerHTML = [
+    { icon: "dashboard", label: "Home", href: "dashboard.html" },
+    { icon: "grade", label: "Nilai", href: "nilai.html" },
+    { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
+    { icon: "checklist", label: "Tugas", href: "checklist.html" },
+    { icon: "groups", label: "Kerabat", href: "struktur.html" },
+  ].map((i) => `<a href="${i.href}" class="flex flex-col items-center justify-center py-2 text-[10px] gap-0.5 ${i.href === "aduan.html" ? "text-primary" : "text-on-surface-variant"}"><span class="material-symbols-outlined text-xl">${i.icon}</span>${i.label}</a>`).join("");
+
+  const html = document.documentElement;
+  if (localStorage.getItem("theme") === "light") html.classList.remove("dark");
+  const btnT = document.getElementById("btn-theme"), iconT = document.getElementById("theme-icon");
+  const setIcon = () => (iconT.textContent = html.classList.contains("dark") ? "light_mode" : "dark_mode");
+  setIcon();
+  btnT.addEventListener("click", () => { html.classList.toggle("dark"); localStorage.setItem("theme", html.classList.contains("dark") ? "dark" : "light"); setIcon(); });
+  document.getElementById("btn-logout").addEventListener("click", async () => { if (confirm("Keluar?")) { await logActivity(ME.uid, "logout"); await signOut(auth); window.location.replace("index.html"); } });
+  document.getElementById("btn-menu").addEventListener("click", () => { const sb = document.getElementById("sidebar"); sb.classList.toggle("hidden"); sb.classList.toggle("flex"); });
+
+  // Form aduan
+  document.getElementById("form-aduan").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const kategori = document.getElementById("a-kategori").value;
+    const judul = document.getElementById("a-judul").value.trim();
+    const deskripsi = document.getElementById("a-deskripsi").value.trim();
+    const anonim = document.getElementById("a-anonim").checked;
+
+    try {
+      const ref = await addDoc(collection(db, "aduan"), {
+        pengirimUid: anonim ? "anonim" : ME.uid,
+        pengirimNamaAsli: ME.profile.nama,
+        anonim,
+        kategori, judul, deskripsi,
+        status: "Open",
+        prioritas: ["Bullying", "Keamanan"].includes(kategori) ? "Tinggi" : "Normal",
+        waktu: serverTimestamp(),
+      });
+      ADUAN_TERAKHIR = { id: ref.id, judul, deskripsi, kategori };
+      await logActivity(ME.uid, "kirim_aduan", kategori);
+      showToast("Aduan terkirim!", "success");
+      document.getElementById("wa-followup").classList.remove("hidden");
+      e.target.reset();
+      await loadAduan();
+    } catch (err) { showToast("Gagal kirim aduan.", "error"); }
+  });
+
+  document.getElementById("btn-wa-aduan").addEventListener("click", () => {
+    if (!ADUAN_TERAKHIR) return;
+    const teks = `Halo Pak/Bu Guru, saya ${ME.profile.nama} dari kelas ${ME.profile.kelas}. Saya ingin menyampaikan aduan:\n\nJudul: ${ADUAN_TERAKHIR.judul}\nKategori: ${ADUAN_TERAKHIR.kategori}\nDeskripsi: ${ADUAN_TERAKHIR.deskripsi}\n\nTerima kasih.`;
+    window.open(`https://wa.me/${WA_GURU}?text=${encodeURIComponent(teks)}`, "_blank");
+  });
+
+  // Load aduan
+  const loadAduan = async () => {
+    const el = document.getElementById("aduan-list");
+    const snap = await getDocs(query(collection(db, "aduan"), orderBy("waktu", "desc")));
+    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((a) => {
+      if (["guru", "admin"].includes(ME.profile.role)) return true;
+      return a.pengirimUid === ME.uid || a.pengirimNamaAsli === ME.profile.nama;
+    });
+    if (!list.length) { el.innerHTML = `<p class="text-sm text-on-surface-variant text-center py-6">Belum ada aduan</p>`; return; }
+    el.innerHTML = list.map((a) => {
+      const badge = a.status === "Closed" ? "bg-green-600 text-white" : a.status === "In Progress" ? "bg-blue-600 text-white" : "bg-yellow-500 text-black";
+      return `
+        <div class="p-3 rounded-xl bg-surface-container">
+          <div class="flex items-start justify-between gap-2">
+            <div><p class="text-sm font-medium">${esc(a.judul)}</p><p class="text-[10px] text-on-surface-variant">${esc(a.kategori)} · ${waktuRelatif(a.waktu)}</p></div>
+            <span class="text-[10px] px-2 py-0.5 rounded-full ${badge}">${esc(a.status)}</span>
+          </div>
+          <p class="text-xs text-on-surface-variant mt-1">${esc(a.deskripsi)}</p>
+          ${a.balasan ? `<div class="mt-2 p-2 rounded-lg bg-primary-container/30 border border-primary/30"><p class="text-[10px] text-primary">Balasan Guru:</p><p class="text-xs">${esc(a.balasan)}</p></div>` : ""}
+        </div>`;
+    }).join("");
+  };
+
+  await loadAduan();
+})();
+</script>
+</body>
+</html>
