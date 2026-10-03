@@ -1,16 +1,8 @@
 /**
- * SP-PPT — Router & Proteksi Halaman
- * Memastikan halaman hanya diakses oleh role yang berhak.
+ * SP-PPT — Router & Session Management
+ * Session disimpan di localStorage (bukan Firebase Auth).
  */
 
-import { auth, db } from "./firebase-init.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  doc,
-  getDoc,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-// Daftar peran yang boleh mengakses halaman tertentu (opsional)
 export const PAGE_ACCESS = {
   "dashboard.html": ["siswa", "guru", "admin"],
   "nilai.html": ["siswa", "guru", "admin"],
@@ -21,44 +13,68 @@ export const PAGE_ACCESS = {
   "arsip.html": ["siswa", "guru", "admin"],
   "aduan.html": ["siswa", "guru", "admin"],
   "rapor.html": ["siswa", "guru", "admin"],
+  "broadcast.html": ["siswa", "guru", "admin"],
+  "sutradara.html": ["siswa", "guru", "admin"],
+  "asisten.html": ["siswa", "guru", "admin"],
+  "koordinator.html": ["siswa", "guru", "admin"],
+  "pemain.html": ["siswa", "guru", "admin"],
+  "admin.html": ["guru", "admin"],
+  "pengaturan.html": ["siswa", "guru", "admin"],
 };
 
-/**
- * Panggil di setiap halaman terlindungi.
- * @returns {Promise<{uid: string, profile: object}>}
- */
+const SESSION_KEY = "sppt_session";
+const SESSION_DURATION = 8 * 60 * 60 * 1000;
+
+export function getSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (Date.now() > s.expiresAt) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return s;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function saveSession(uid, profile) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({
+    uid,
+    profile,
+    loginAt: Date.now(),
+    expiresAt: Date.now() + SESSION_DURATION,
+  }));
+}
+
+export function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 export function protectPage() {
   return new Promise((resolve, reject) => {
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        window.location.replace("index.html");
-        reject("Tidak login");
-        return;
-      }
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (!snap.exists()) {
-        window.location.replace("index.html");
-        reject("Profil tidak ditemukan");
-        return;
-      }
-      const profile = snap.data();
+    const session = getSession();
+    if (!session) {
+      window.location.replace("index.html");
+      reject("Tidak login");
+      return;
+    }
 
-      // Cek akses halaman
-      const page = window.location.pathname.split("/").pop() || "dashboard.html";
-      const allowed = PAGE_ACCESS[page] || ["siswa", "guru", "admin"];
-      if (!allowed.includes(profile.role)) {
-        alert("Akses ditolak untuk halaman ini.");
-        window.location.replace("dashboard.html");
-        reject("Akses ditolak");
-        return;
-      }
+    const page = window.location.pathname.split("/").pop() || "dashboard.html";
+    const allowed = PAGE_ACCESS[page] || ["siswa", "guru", "admin"];
+    if (!allowed.includes(session.profile.role)) {
+      alert("Akses ditolak untuk halaman ini.");
+      window.location.replace("dashboard.html");
+      reject("Akses ditolak");
+      return;
+    }
 
-      resolve({ uid: user.uid, profile });
-    });
+    resolve({ uid: session.uid, profile: session.profile });
   });
 }
 
-/** Navigasi programatik */
 export function goto(page) {
   window.location.href = page;
 }
