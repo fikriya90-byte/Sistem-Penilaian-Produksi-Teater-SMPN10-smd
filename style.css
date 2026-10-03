@@ -1,0 +1,252 @@
+/* ============================================
+   SP-PPT Custom Stylesheet
+   ============================================ */
+
+/* Reset dasar */
+html, body { margin: 0; padding: 0; }
+body { overscroll-behavior: none; }
+
+/* Background motif teater dengan overlay gelap */
+body.app-bg {
+  background-image:
+    linear-gradient(to bottom, rgba(16, 20, 21, 0.92), rgba(16, 20, 21, 0.98)),
+    url('./assets/bg-pattern.png');
+  background-size: cover, 400px;
+  background-position: center, top left;
+  background-attachment: fixed, fixed;
+  background-repeat: no-repeat, repeat;
+}
+
+/* Background untuk halaman login */
+body.login-bg {
+  background-image:
+    linear-gradient(to bottom, rgba(16, 20, 21, 0.88), rgba(16, 20, 21, 0.96)),
+    url('./assets/bg-pattern.png');
+  background-size: cover, 400px;
+  background-position: center, top left;
+  background-attachment: fixed, fixed;
+  background-repeat: no-repeat, repeat;
+}
+
+/* Scrollbar tersembunyi */
+::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* ============================================
+   ANIMASI
+   ============================================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in { animation: slideInRight 0.3s ease-out; }
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in { animation: scaleIn 0.2s ease-out; }
+
+/* ============================================
+   GLASSMORPHISM
+   ============================================ */
+.glass {
+  background: rgba(25, 28, 30, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(71, 70, 79, 0.2);
+}
+
+/* ============================================
+   LENCANA PERAN (Role Badge)
+   ============================================ */
+.badge-emas {
+  background-color: #d97707;
+  color: #432100;
+  font-weight: 600;
+}
+.badge-biru {
+  background-color: #1e1b4b;
+  color: #8683ba;
+  font-weight: 600;
+}
+.badge-abu {
+  background-color: #323537;
+  color: #c8c5d0;
+  font-weight: 500;
+}
+
+/* ============================================
+   KANBAN
+   ============================================ */
+.kanban-column {
+  min-height: 400px;
+  transition: background-color 0.2s;
+}
+.kanban-column.drag-over {
+  background-color: rgba(196, 193, 251, 0.05);
+}
+.kanban-card {
+  cursor: grab;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.kanban-card:active { cursor: grabbing; }
+.kanban-card.dragging { opacity: 0.5; transform: rotate(2deg); }
+
+/* ============================================
+   KALENDER
+   ============================================ */
+.calendar-day {
+  aspect-ratio: 1 / 1;
+  min-height: 60px;
+  transition: background-color 0.15s;
+}
+.calendar-day:hover { background-color: rgba(50, 53, 55, 0.4); }
+.calendar-day.today { border: 2px solid #c4c1fb; }
+.calendar-day.other-month { opacity: 0.35; }
+
+/* ============================================
+   RANGE SLIDER (Rubrik Penilaian)
+   ============================================ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 9999px;
+  background: #323537;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffb77d;
+  cursor: pointer;
+  border: 3px solid #1d2022;
+  box-shadow: 0 2px 8px rgba(255, 183, 125, 0.4);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffb77d;
+  cursor: pointer;
+  border: 3px solid #1d2022;
+}
+
+/* ============================================
+   STAR RATING
+   ============================================ */
+.star-filled { color: #ffb77d; font-variation-settings: 'FILL' 1; }
+.star-empty { color: #47464f; font-variation-settings: 'FILL' 0; }
+
+/* ============================================
+   PRINT STYLESHEET (Rapor)
+   ============================================ */
+@media print {
+  /* Sembunyikan semua elemen interaktif */
+  #sidebar,
+  #sidebar-overlay,
+  header,
+  #app-shell > div.fixed,
+  #modal-container,
+  #toast-container,
+  #notif-panel,
+  #notif-overlay,
+  .no-print,
+  button,
+  .fab-container {
+    display: none !important;
+  }
+
+  /* Reset layout */
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12pt;
+    background-image: none !important;
+  }
+
+  .lg\:pl-72 { padding-left: 0 !important; }
+  main { padding: 0 !important; }
+
+  /* Pengaturan halaman */
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+
+  /* Konten rapor */
+  .print-area {
+    display: block !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .print-area * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-color: #000 !important;
+  }
+
+  /* Kop rapor */
+  .rapor-kop {
+    border-bottom: 3px double #000;
+    padding-bottom: 12pt;
+    margin-bottom: 16pt;
+  }
+  .rapor-kop h1 { font-size: 16pt; font-weight: 700; }
+  .rapor-kop p { font-size: 10pt; }
+
+  /* Tabel rapor */
+  .rapor-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+  .rapor-table th,
+  .rapor-table td {
+    border: 1px solid #000;
+    padding: 6pt 8pt;
+    text-align: left;
+  }
+  .rapor-table th { background: #e0e0e0 !important; font-weight: 700; }
+
+  /* Hindari pemisahan baris */
+  tr, td, th { page-break-inside: avoid; }
+  h1, h2, h3 { page-break-after: avoid; }
+}
+
+/* ============================================
+   RESPONSIF TAMBAHAN
+   ============================================ */
+@media (max-width: 480px) {
+  .font-headline-xl { font-size: 26px !important; line-height: 32px !important; }
+  .font-headline-lg { font-size: 22px !important; line-height: 28px !important; }
+}
+
+/* ============================================
+   AKSESIBILITAS
+   ============================================ */
+*:focus-visible {
+  outline: 2px solid #c4c1fb;
+  outline-offset: 2px;
+}
+
+button, a { cursor: pointer; }
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
