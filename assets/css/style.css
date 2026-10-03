@@ -1,0 +1,130 @@
+/* =========================================================
+ * SP-PPT — Custom Styles (di luar Tailwind)
+ * ========================================================= */
+
+:root {
+  --surface: #101415;
+  --surface-low: #191c1e;
+  --surface-high: #272a2c;
+  --primary: #c4c1fb;
+  --secondary: #ffb77d;
+  --tertiary: #b4c5ff;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  font-family: "Inter", sans-serif;
+  background-color: var(--surface);
+  color: #e0e3e5;
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
+}
+
+/* Role Tabs (login) */
+.role-tab {
+  transition: all 0.2s ease;
+  color: #6b7280;
+}
+.role-tab.active {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: #4338ca;
+}
+
+/* Animasi */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in { animation: slide-in 0.3s ease; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.3s ease; }
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(196, 193, 251, 0.6); }
+  70%  { box-shadow: 0 0 0 12px rgba(196, 193, 251, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(196, 193, 251, 0); }
+}
+.pulse-ring { animation: pulse-ring 2s infinite; }
+
+/* Glassmorphism Card */
+.glass {
+  background: rgba(25, 28, 30, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(71, 70, 79, 0.5);
+}
+
+/* Scrollbar Custom */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #191c1e;
+}
+::-webkit-scrollbar-thumb {
+  background: #323537;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #47464f;
+}
+
+/* Print mode */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+}
+
+/* Fokus aksesibel */
+:focus-visible {
+  outline: 2px solid #c4c1fb;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #272a2c 25%, #323537 50%, #272a2c 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.5rem;
+}
+
+/* Bottom nav (mobile) */
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Light mode overrides */
+html:not(.dark) body {
+  background: #f5f5f7;
+  color: #1a1a1a;
+}
+html:not(.dark) .glass {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.08);
+}
