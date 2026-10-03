@@ -29,6 +29,7 @@ const MENU_BASE = [
   { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
   { icon: "fact_check", label: "Absensi", href: "absensi.html" },
   { icon: "checklist", label: "Checklist Tugas", href: "checklist.html" },
+  { icon: "campaign", label: "Broadcast", href: "broadcast.html" },
   { icon: "groups", label: "Struktur Kerabat", href: "struktur.html" },
   { icon: "folder", label: "Arsip Dokumen", href: "arsip.html" },
   { icon: "support_agent", label: "Aduan & Bantuan", href: "aduan.html" },
@@ -43,6 +44,7 @@ const MENU_GURU = [
   { icon: "shield", label: "Moderasi", href: "nilai.html#moderasi" },
   { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
   { icon: "fact_check", label: "Absensi", href: "absensi.html" },
+  { icon: "campaign", label: "Broadcast", href: "broadcast.html" },
   { icon: "groups", label: "Struktur", href: "struktur.html" },
   { icon: "folder", label: "Arsip", href: "arsip.html" },
   { icon: "description", label: "Rapor PDF", href: "rapor.html" },
@@ -160,7 +162,27 @@ function cardQuickActions(profile) {
     </div>
   </div>`;
 }
+function cardBroadcastCepat(profile) {
+  const boleh = profile.role === "guru" || profile.role === "admin" ||
+    ["Pimpinan Produksi", "Sekretaris", "Sutradara", "Asisten Sutradara", "Bendahara"].includes(profile.peran) ||
+    profile.peran.startsWith("Koordinator");
 
+  if (!boleh) return "";
+
+  return `
+  <div class="glass rounded-2xl p-5 border-l-4 border-secondary">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-headline font-semibold flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">campaign</span> Broadcast Cepat
+      </h3>
+      <a href="broadcast.html" class="text-xs text-primary hover:underline">Buka →</a>
+    </div>
+    <p class="text-xs text-on-surface-variant mb-3">Kirim pengumuman ke peran/divisi/semua siswa.</p>
+    <a href="broadcast.html" class="block w-full py-2.5 rounded-lg bg-secondary text-on-secondary font-medium text-sm text-center">
+      📢 Buat Broadcast Baru
+    </a>
+  </div>`;
+}
 function cardProgresProduksi() {
   return `
   <div class="glass rounded-2xl p-5">
