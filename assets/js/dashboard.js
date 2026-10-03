@@ -35,6 +35,23 @@ const MENU_BASE = [
   { icon: "folder", label: "Arsip Dokumen", href: "arsip.html" },
   { icon: "support_agent", label: "Aduan & Bantuan", href: "aduan.html" },
   { icon: "description", label: "Rapor PDF", href: "rapor.html" },
+  // Untuk Sutradara - tambahkan setelah dashboard
+  { icon: "movie", label: "Panel Sutradara", href: "sutradara.html" },
+  
+  // Untuk Asisten Sutradara
+  { icon: "book", label: "Panel Asisten", href: "asisten.html" },
+  
+  // Untuk Koordinator
+  { icon: "engineering", label: "Panel Koordinator", href: "koordinator.html" },
+  
+  // Untuk Pemain
+  { icon: "theater_comedy", label: "Panel Pemain", href: "pemain.html" },
+  
+  // Untuk Guru/Admin
+  { icon: "admin_panel_settings", label: "Panel Admin", href: "admin.html" },
+  
+  // Semua role - paling bawah
+  { icon: "settings", label: "Pengaturan", href: "pengaturan.html" },
 ];
 
 const MENU_GURU = [
@@ -49,6 +66,23 @@ const MENU_GURU = [
   { icon: "groups", label: "Struktur", href: "struktur.html" },
   { icon: "folder", label: "Arsip", href: "arsip.html" },
   { icon: "description", label: "Rapor PDF", href: "rapor.html" },
+  // Untuk Sutradara - tambahkan setelah dashboard
+  { icon: "movie", label: "Panel Sutradara", href: "sutradara.html" },
+  
+  // Untuk Asisten Sutradara
+  { icon: "book", label: "Panel Asisten", href: "asisten.html" },
+  
+  // Untuk Koordinator
+  { icon: "engineering", label: "Panel Koordinator", href: "koordinator.html" },
+  
+  // Untuk Pemain
+  { icon: "theater_comedy", label: "Panel Pemain", href: "pemain.html" },
+  
+  // Untuk Guru/Admin
+  { icon: "admin_panel_settings", label: "Panel Admin", href: "admin.html" },
+  
+  // Semua role - paling bawah
+  { icon: "settings", label: "Pengaturan", href: "pengaturan.html" },
 ];
 
 /* =========================================================
@@ -552,6 +586,33 @@ async function renderDashboard(uid, profile) {
 
   // Bind tombol lihat semua notif
   document.getElementById("btn-all-notif")?.addEventListener("click", bukaPanelNotif);
+}
+function cardPanelKhusus(profile) {
+  const map = {
+    "Sutradara": { label: "Panel Sutradara", href: "sutradara.html", icon: "movie", desc: "Visi artistik, casting, catatan harian, penilaian pemain" },
+    "Asisten Sutradara": { label: "Panel Asisten", href: "asisten.html", icon: "book", desc: "Prompt book, catatan harian, standby cue live" },
+    "Pemain": { label: "Panel Pemain", href: "pemain.html", icon: "theater_comedy", desc: "Naskah digital, latihan dialog, rekam suara, refleksi" },
+  };
+  const info = map[profile.peran] || (profile.peran.startsWith("Koordinator") ? {
+    label: `Panel ${profile.divisi}`, href: "koordinator.html", icon: "engineering",
+    desc: "Kelola divisi, tugas anggota, inventaris, dan progres"
+  } : null);
+
+  if (!info) return "";
+
+  return `
+  <a href="${info.href}" class="glass rounded-2xl p-5 border-l-4 border-secondary hover:bg-surface-container transition block">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
+        <span class="material-symbols-outlined text-secondary text-2xl">${info.icon}</span>
+      </div>
+      <div class="flex-1">
+        <p class="font-headline font-semibold">${info.label}</p>
+        <p class="text-xs text-on-surface-variant mt-0.5">${info.desc}</p>
+      </div>
+      <span class="material-symbols-outlined text-secondary">arrow_forward</span>
+    </div>
+  </a>`;
 }
 
 /* =========================================================
