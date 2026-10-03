@@ -486,10 +486,19 @@ async function renderBeriNilai() {
   });
 }
 
-function bukaFormNilai({ uid, nama, peran }) {
+async function bukaFormNilai({ uid, nama, peran }) {
   const kriteria = getKriteria(peran);
   const tahap = document.getElementById("p-tahap").value;
   const form = document.getElementById("p-form-inline");
+
+  // Cek penilaian yang sudah ada
+  const existing = await getDocs(query(
+    collection(db, "penilaian"),
+    where("penilaiUid", "==", ME.uid),
+    where("targetUid", "==", uid),
+    where("tahapan", "==", tahap)
+  ));
+  const existingDoc = existing.empty ? null : { id: existing.docs[0].id, ...existing.docs[0].data() };
 
   form.innerHTML = `
   <div class="glass rounded-2xl p-5 border-l-4 border-primary mt-5">
@@ -498,33 +507,50 @@ function bukaFormNilai({ uid, nama, peran }) {
         <p class="text-xs text-on-surface-variant">Menilai:</p>
         <h3 class="font-headline font-semibold text-lg">${esc(nama)}</h3>
         <p class="text-xs text-on-surface-variant">${esc(peran)} · Tahap: ${tahap}</p>
+        ${existingDoc ? `<p class="text-xs text-secondary mt-1">⚠️ Sudah ada penilaian. Perubahan akan tercatat sebagai revisi.</p>` : ""}
       </div>
       <button id="btn-tutup-form" class="p-2 rounded hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
     </div>
+
     <div class="space-y-4">
-      ${kriteria.map((k, i) => `
+      ${kriteria.map((k) => {
+        const existingNilai = existingDoc?.nilai?.find((n) => n.kriteria === k.nama);
+        const val = existingNilai?.skor || 3;
+        const komentarVal = existingNilai?.komentar || "";
+        return `
         <div class="p-3 rounded-xl bg-surface-container">
           <div class="flex justify-between items-center mb-2">
             <p class="text-sm font-medium">${k.nama}</p>
             <span class="text-xs text-on-surface-variant">Bobot ${k.bobot}%</span>
           </div>
-          <input type="range" min="1" max="4" value="3" data-kriteria="${k.nama}" data-bobot="${k.bobot}" class="slider-nilai w-full accent-primary" />
+          <input type="range" min="1" max="4" value="${val}" data-kriteria="${k.nama}" data-bobot="${k.bobot}" class="slider-nilai w-full accent-primary" />
           <div class="flex justify-between text-[10px] text-on-surface-variant mt-1">
             <span>1 Kurang</span><span>2 Cukup</span><span>3 Baik</span><span>4 Sangat Baik</span>
           </div>
-          <p class="text-xs text-primary mt-2 deskripsi-nilai" data-i="${i}">${k.desc[2]}</p>
-          <input type="text" placeholder="Komentar (wajib jika skor ≤ 2)" data-komentar="${k.nama}"
+          <p class="text-xs text-primary mt-2 deskripsi-nilai">${k.deskripsi[val - 1]}</p>
+          <input type="text" placeholder="Komentar (wajib jika skor ≤ 2)" data-komentar="${k.nama}" value="${esc(komentarVal)}"
             class="komentar-input w-full mt-2 px-3 py-2 text-xs rounded-lg bg-surface-container-high border border-outline-variant" />
-        </div>
-      `).join("")}
+        </div>`;
+      }).join("")}
     </div>
+
     <div class="mt-4 p-3 rounded-xl bg-primary-container/40 border border-primary/30">
       <p class="text-xs text-on-surface-variant">Preview Nilai</p>
       <p class="font-headline font-bold text-2xl text-primary" id="preview-nilai">80.00</p>
     </div>
+
+    ${existingDoc ? `
+    <div class="mt-4 p-3 rounded-lg bg-secondary/10 border border-secondary/30">
+      <label class="text-xs text-secondary font-medium mb-1 block">Alasan Revisi (opsional)</label>
+      <input type="text" id="alasan-revisi" placeholder="Contoh: Koreksi setelah evaluasi ulang"
+        class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-xs" />
+    </div>` : ""}
+
     <div class="flex gap-2 mt-4">
       <button id="btn-draft" class="flex-1 py-2.5 rounded-lg bg-surface-container-high text-sm font-medium">Simpan Draft</button>
-      <button id="btn-final" class="flex-1 py-2.5 rounded-lg bg-primary text-on-primary text-sm font-medium">Finalisasi</button>
+      <button id="btn-final" class="flex-1 py-2.5 rounded-lg bg-primary text-on-primary text-sm font-medium">
+        ${existingDoc ? "Simpan Revisi" : "Finalisasi"}
+      </button>
     </div>
   </div>`;
 
@@ -537,12 +563,10 @@ function bukaFormNilai({ uid, nama, peran }) {
       const bob = parseInt(s.dataset.bobot);
       total += skorKeNilai(skor) * bob;
       totBob += bob;
-      const idx = s.closest(".p-3").querySelector(".deskripsi-nilai").dataset.i;
       const k = kriteria.find((x) => x.nama === s.dataset.kriteria);
-      if (k) s.closest(".p-3").querySelector(".deskripsi-nilai").textContent = k.desc[skor - 1];
+      if (k) s.closest(".p-3").querySelector(".deskripsi-nilai").textContent = k.deskripsi[skor - 1];
     });
-    const hasil = totBob ? total / totBob : 0;
-    form.querySelector("#preview-nilai").textContent = hasil.toFixed(2);
+    form.querySelector("#preview-nilai").textContent = (totBob ? total / totBob : 0).toFixed(2);
   };
 
   form.querySelectorAll(".slider-nilai").forEach((s) => s.addEventListener("input", updatePreview));
@@ -556,7 +580,11 @@ function bukaFormNilai({ uid, nama, peran }) {
     form.querySelectorAll(".slider-nilai").forEach((s) => {
       const skor = parseInt(s.value);
       const komentar = form.querySelector(`[data-komentar="${s.dataset.kriteria}"]`).value.trim();
-      if (skor <= 2 && !komentar) { valid = false; showToast(`Komentar wajib untuk "${s.dataset.kriteria}" (skor ≤ 2).`, "warning"); return; }
+      if (skor <= 2 && !komentar) {
+        valid = false;
+        showToast(`Komentar wajib untuk "${s.dataset.kriteria}" (skor ≤ 2).`, "warning");
+        return;
+      }
       nilai.push({ kriteria: s.dataset.kriteria, skor, komentar });
     });
     if (!valid) return;
@@ -564,20 +592,49 @@ function bukaFormNilai({ uid, nama, peran }) {
     const jenisPenilai = ME.profile.role === "guru" ? "guru" :
       (["Pimpinan Produksi", "Sutradara", "Asisten Sutradara"].includes(ME.profile.peran) ? "ketua" : "rekan");
 
+    const dataBaru = {
+      penilaiUid: ME.uid,
+      targetUid: uid,
+      tahapan: tahap,
+      jenisPenilai,
+      status,
+      anonim: false,
+      nilai,
+      updatedAt: serverTimestamp(),
+    };
+
     try {
-      await addDoc(collection(db, "penilaian"), {
-        penilaiUid: ME.uid,
-        targetUid: uid,
-        tahapan: tahap,
-        jenisPenilai,
-        status,
-        anonim: false,
-        nilai,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      await logActivity(ME.uid, `penilaian_${status}`, `target=${uid},tahap=${tahap}`);
-      showToast(status === "final" ? "Nilai difinalisasi!" : "Draft disimpan!", "success");
+      if (existingDoc) {
+        // Revisi
+        const alasan = form.querySelector("#alasan-revisi")?.value.trim() || "Tanpa alasan";
+        await updateDoc(doc(db, "penilaian", existingDoc.id), {
+          ...dataBaru,
+          versi: (existingDoc.versi || 1) + 1,
+          superseded: false,
+        });
+        await simpanRevisiNilai(existingDoc.id, existingDoc.nilai, nilai, alasan, ME.uid);
+        await logActivity(ME.uid, "revisi_nilai", `target=${uid}, tahap=${tahap}`);
+        showToast("Revisi tersimpan!", "success");
+      } else {
+        // Baru
+        await addDoc(collection(db, "penilaian"), {
+          ...dataBaru,
+          versi: 1,
+          createdAt: serverTimestamp(),
+        });
+        // Notifikasi ke siswa
+        await addDoc(collection(db, "notifikasi"), {
+          penerimaUid: uid,
+          jenis: status === "final" ? "Info" : "Reminder",
+          judul: status === "final" ? "🎯 Nilai Baru Masuk" : "📝 Draft Nilai Tersimpan",
+          pesan: `Anda mendapat penilaian ${status === "final" ? "final" : "draft"} di tahap ${tahap}.`,
+          dari: ME.profile.nama,
+          dibaca: false,
+          waktu: serverTimestamp(),
+        });
+        await logActivity(ME.uid, `penilaian_${status}`, `target=${uid},tahap=${tahap}`);
+        showToast(status === "final" ? "Nilai difinalisasi!" : "Draft disimpan!", "success");
+      }
       form.innerHTML = "";
     } catch (e) {
       console.error(e);
@@ -829,3 +886,154 @@ function switchTab(tab) {
 
   switchTab("saya");
 })();
+/* =========================================================
+ * BATCH PENILAIAN FORM
+ * ========================================================= */
+function bukaBatchForm(uids, daftarSiswa) {
+  const form = document.getElementById("p-form-inline");
+  const tahap = document.getElementById("p-tahap").value;
+  const siswaTerpilih = daftarSiswa.filter((s) => uids.includes(s.uid));
+
+  // Asumsi semua siswa punya peran yang sama untuk kriteria
+  // Jika beda peran, kita ambil kriteria dari peran yang paling banyak
+  const peranCount = {};
+  siswaTerpilih.forEach((s) => (peranCount[s.peran] = (peranCount[s.peran] || 0) + 1));
+  const peranDominan = Object.entries(peranCount).sort((a, b) => b[1] - a[1])[0][0];
+  const kriteria = getKriteria(peranDominan);
+
+  form.innerHTML = `
+  <div class="glass rounded-2xl p-5 border-l-4 border-primary mt-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <p class="text-xs text-on-surface-variant">Batch Penilaian</p>
+        <h3 class="font-headline font-semibold text-lg">${siswaTerpilih.length} Siswa · Tahap ${tahap}</h3>
+        <p class="text-xs text-on-surface-variant">Kriteria dominan: ${esc(peranDominan)}</p>
+      </div>
+      <button id="btn-tutup-batch" class="p-2 rounded hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+    </div>
+
+    <div class="mb-4 p-3 rounded-lg bg-secondary/10 border border-secondary/30 text-xs">
+      <p class="text-secondary font-medium mb-1">💡 Quick Score</p>
+      <p>Terapkan nilai yang sama ke semua siswa untuk mempercepat. Anda dapat mengubah per siswa setelahnya.</p>
+    </div>
+
+    <div class="space-y-4">
+      ${kriteria.map((k, i) => `
+        <div class="p-3 rounded-xl bg-surface-container">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm font-medium">${k.nama}</p>
+            <span class="text-xs text-on-surface-variant">Bobot ${k.bobot}%</span>
+          </div>
+          <input type="range" min="1" max="4" value="3" data-kriteria="${k.nama}" data-bobot="${k.bobot}" class="slider-nilai-batch w-full accent-primary" />
+          <div class="flex justify-between text-[10px] text-on-surface-variant mt-1">
+            <span>1 Kurang</span><span>2 Cukup</span><span>3 Baik</span><span>4 Sangat Baik</span>
+          </div>
+          <p class="text-xs text-primary mt-2 deskripsi-batch">${k.deskripsi[2]}</p>
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="mt-4 p-3 rounded-xl bg-primary-container/40 border border-primary/30">
+      <p class="text-xs text-on-surface-variant">Preview Nilai Batch</p>
+      <p class="font-headline font-bold text-2xl text-primary" id="preview-batch">80.00</p>
+    </div>
+
+    <div class="mt-4">
+      <p class="text-xs text-on-surface-variant mb-2">Komentar Batch (opsional, berlaku ke semua):</p>
+      <input type="text" id="komentar-batch" placeholder="Komentar umum..." class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm" />
+    </div>
+
+    <div class="flex gap-2 mt-4">
+      <button id="btn-batch-draft" class="flex-1 py-2.5 rounded-lg bg-surface-container-high text-sm font-medium">Simpan Draft</button>
+      <button id="btn-batch-final" class="flex-1 py-2.5 rounded-lg bg-primary text-on-primary text-sm font-medium">Finalisasi ${siswaTerpilih.length} Nilai</button>
+    </div>
+  </div>`;
+
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const updatePreview = () => {
+    let total = 0, totBob = 0;
+    form.querySelectorAll(".slider-nilai-batch").forEach((s) => {
+      const skor = parseInt(s.value);
+      const bob = parseInt(s.dataset.bobot);
+      total += skorKeNilai(skor) * bob;
+      totBob += bob;
+      const k = kriteria.find((x) => x.nama === s.dataset.kriteria);
+      if (k) s.closest(".p-3").querySelector(".deskripsi-batch").textContent = k.deskripsi[skor - 1];
+    });
+    form.querySelector("#preview-batch").textContent = (totBob ? total / totBob : 0).toFixed(2);
+  };
+
+  form.querySelectorAll(".slider-nilai-batch").forEach((s) => s.addEventListener("input", updatePreview));
+  updatePreview();
+
+  form.querySelector("#btn-tutup-batch").addEventListener("click", () => (form.innerHTML = ""));
+
+  const simpanBatch = async (status) => {
+    const nilaiBatch = [];
+    form.querySelectorAll(".slider-nilai-batch").forEach((s) => {
+      nilaiBatch.push({ kriteria: s.dataset.kriteria, skor: parseInt(s.value), komentar: "" });
+    });
+    const komentarUmum = form.querySelector("#komentar-batch").value.trim();
+
+    // Validasi: skor ≤ 2 wajib komentar
+    if (nilaiBatch.some((n) => n.skor <= 2) && !komentarUmum) {
+      showToast("Ada skor ≤ 2. Komentar batch wajib diisi.", "warning");
+      return;
+    }
+
+    const jenisPenilai = ME.profile.role === "guru" ? "guru" :
+      (["Pimpinan Produksi", "Sutradara", "Asisten Sutradara"].includes(ME.profile.peran) ? "ketua" : "rekan");
+
+    let sukses = 0;
+    for (const s of siswaTerpilih) {
+      // Gunakan kriteria siswa masing-masing
+      const kriteriaSiswa = getKriteria(s.peran);
+      const nilaiSiswa = kriteriaSiswa.map((k) => {
+        const found = nilaiBatch.find((x) => x.kriteria === k.nama);
+        return found ? { ...found, komentar: found.skor <= 2 ? komentarUmum : "" } : { kriteria: k.nama, skor: 3, komentar: "" };
+      });
+
+      try {
+        await addDoc(collection(db, "penilaian"), {
+          penilaiUid: ME.uid,
+          targetUid: s.uid,
+          tahapan: tahap,
+          jenisPenilai,
+          status,
+          anonim: false,
+          nilai: nilaiSiswa,
+          batchId: `batch_${Date.now()}`, // group ID
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        // Notifikasi ke siswa
+        await addDoc(collection(db, "notifikasi"), {
+          penerimaUid: s.uid,
+          jenis: status === "final" ? "Info" : "Reminder",
+          judul: status === "final" ? "🎯 Nilai Baru Masuk" : "📝 Draft Nilai Tersimpan",
+          pesan: `Anda mendapat penilaian ${status === "final" ? "final" : "draft"} di tahap ${tahap}.`,
+          dari: ME.profile.nama,
+          dibaca: false,
+          waktu: serverTimestamp(),
+        });
+
+        sukses++;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    await logActivity(ME.uid, `batch_penilaian_${status}`, `${sukses} siswa, tahap=${tahap}`);
+    showToast(`${sukses}/${siswaTerpilih.length} nilai ${status === "final" ? "difinalisasi" : "draft disimpan"}!`, "success");
+    form.innerHTML = "";
+    SELECTED_SISWA.clear();
+  };
+
+  form.querySelector("#btn-batch-draft").addEventListener("click", () => simpanBatch("draft"));
+  form.querySelector("#btn-batch-final").addEventListener("click", () => {
+    if (!confirm(`Finalisasi ${siswaTerpilih.length} nilai sekaligus?`)) return;
+    simpanBatch("final");
+  });
+}
