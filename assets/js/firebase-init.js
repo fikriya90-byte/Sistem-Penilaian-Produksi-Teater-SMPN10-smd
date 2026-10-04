@@ -1,5 +1,7 @@
 /**
- * SP-PPT — Firebase Initialization (Tanpa Firebase Auth)
+ * SP-PPT — Firebase Initialization
+ * Tanpa Firebase Auth. Session di localStorage.
+ * Menyediakan stub `auth` supaya file lain yang import { auth } tidak crash.
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -17,12 +19,29 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {});
 
-// Stub auth — supaya file lain yang masih import { auth } tidak crash
+/* =========================================================
+ * STUB: Firebase Auth
+ * Modul lain masih meng-import { auth } — kita sediakan
+ * objek dummy supaya import tidak gagal. Fungsi yang butuh
+ * auth asli sudah dihapus dari kode.
+ * ========================================================= */
 export const auth = {
   currentUser: null,
-  signOut: () => Promise.resolve(),
+  signOut: () => {
+    localStorage.removeItem("sppt_session");
+    return Promise.resolve();
+  },
 };
 
+/* Stub Storage — modul lain mungkin import */
+export const storage = {
+  app,
+  ref: () => null,
+};
+
+/* =========================================================
+ * DAFTAR PERAN RESMI
+ * ========================================================= */
 export const PERAN_LIST = [
   "Pimpinan Produksi", "Sekretaris", "Bendahara",
   "Sutradara", "Asisten Sutradara",
