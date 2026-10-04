@@ -232,3 +232,118 @@ export function doLogout() {
 export async function signOut() {
   doLogout();
 }
+/* =========================================================
+ * LOGOUT HELPER (tanpa Firebase Auth)
+ * ========================================================= */
+export function doLogout() {
+  localStorage.removeItem("sppt_session");
+  window.location.replace("index.html?logout=1");
+}
+
+/* =========================================================
+ * AMBIL SEMUA SISWA DARI STRUKTUR FIREBASE
+ * Baca dari classes.students → normalisasi ke format user
+ * Fallback: kalau ada koleksi users, gabungkan.
+ * ========================================================= */
+import {
+  collection as _col, getDocs as _getDocs,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+export async function getAllStudents() {
+  const hasil = [];
+  const seen = new Set();
+
+  try {
+    // 1. Baca dari classes.students
+    const cSnap = await _getDocs(_col(db, "classes"));
+    cSnap.docs.forEach((cDoc) => {
+      const k = cDoc.data();
+      const students = k.students || [];
+      students.forEach((s) => {
+        if (!s.email) return;
+        const email = String(s.email).toLowerCase().trim();
+        if (seen.has(email)) return;
+        seen.add(email);
+        hasil.push({
+          uid: `student_${email}`,
+          role: "siswa",
+          nama: s.name || "Siswa",
+          nis: s.nis || "",
+          email,
+          whatsapp: s.phone || "",
+          kelas: k.name || "",
+          kelasId: cDoc.id,
+          peran: s.peran || "Pemain",
+          divisi: s.divisi || "Pemeran",
+          fotoUrl: s.fotoUrl || "",
+          _sumber: "classes",
+        });
+      });
+    });
+  } catch (e) {
+    console.warn("[getAllStudents] classes gagal:", e);
+  }
+
+  // 2. Tambah dari koleksi users (kalau ada)
+  try {
+    const uSnap = await _getDocs(_col(db, "users"));
+    uSnap.docs.forEach((uDoc) => {
+      const u = uDoc.data();
+      if (u.role !== "siswa") return;
+      const email = String(u.email || "").toLowerCase().trim();
+      if (email && seen.has(email)) return;
+      if (email) seen.add(email);
+      hasil.push({
+        uid: uDoc.id,
+        role: "siswa",
+        nama: u.nama || u.name || "Siswa",
+        nis: u.nis || "",
+        email,
+        whatsapp: u.whatsapp || u.phone || "",
+        kelas: u.kelas || "",
+        kelasId: u.kelasId || "",
+        peran: u.peran || "Pemain",
+        divisi: u.divisi || "Pemeran",
+        fotoUrl: u.fotoUrl || "",
+        _sumber: "users",
+      });
+    });
+  } catch (e) {
+    console.warn("[getAllStudents] users gagal:", e);
+  }
+
+  return hasil;
+}
+
+/* =========================================================
+ * AMBIL SEMUA GURU
+ * ========================================================= */
+export async function getAllTeachers() {
+  const hasil = [];
+  const seen = new Set();
+
+  try {
+    const tSnap = await _getDocs(_col(db, "teachers"));
+    tSnap.docs.forEach((d) => {
+      const t = d.data();
+      const email = String(t.email || "").toLowerCase().trim();
+      if (!email || seen.has(email)) return;
+      seen.add(email);
+      hasil.push({
+        uid: `teacher_${email}`,
+        role: "guru",
+        peran: "Guru Pembina",
+        nama: t.name || "Guru",
+        email,
+        whatsapp: t.phone || "",
+        kelas: "",
+        divisi: "Guru",
+        _sumber: "teachers",
+      });
+    });
+  } catch (e) {
+    console.warn("[getAllTeachers] gagal:", e);
+  }
+
+  return hasil;
+}
