@@ -1,140 +1,27 @@
-<!DOCTYPE html>
-<html lang="id" class="dark">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#101415" />
-<title>Asisten Sutradara — SP-PPT</title>
-<link rel="manifest" href="manifest.json" />
-<link rel="icon" href="assets/img/logo-sekolah.png" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = { darkMode: 'class', theme: { extend: {
-  colors: { surface:'#101415','surface-container-low':'#191c1e','surface-container':'#1d2022','surface-container-high':'#272a2c','surface-container-highest':'#323537','on-surface':'#e0e3e5','on-surface-variant':'#c8c5d0','outline-variant':'#47464f',primary:'#c4c1fb','on-primary':'#2d2a5b','primary-container':'#1e1b4b','on-primary-container':'#8683ba',secondary:'#ffb77d','on-secondary':'#4d2600','secondary-container':'#d97707',tertiary:'#b4c5ff','on-tertiary':'#002a78','tertiary-container':'#001d58',error:'#ffb4ab','error-container':'#93000a' },
-  fontFamily: { headline: ['"Plus Jakarta Sans"','sans-serif'], body: ['Inter','sans-serif'] },
-}}};
-</script>
-<link rel="stylesheet" href="assets/css/style.css" />
-</head>
-<body class="font-body bg-surface text-on-surface min-h-screen">
-
-<div class="fixed inset-0 z-0 pointer-events-none">
-  <img src="https://iili.io/nJ1Rcj1.png" alt="" class="w-full h-full object-cover opacity-20" />
-  <div class="absolute inset-0" style="background: linear-gradient(to bottom, rgba(16,20,21,0.95), rgba(16,20,21,0.98));"></div>
-</div>
-
-<aside id="sidebar" class="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-72 glass z-40 border-r border-outline-variant/40">
-  <div class="p-5 border-b border-outline-variant/40 flex items-center gap-3">
-    <img src="https://iili.io/nBiviCX.png" alt="" class="w-10 h-10" />
-    <div><h1 class="font-headline font-bold text-lg">SP-PPT</h1><p class="text-xs text-on-surface-variant">SMPN 10 Samarinda</p></div>
-  </div>
-  <nav id="sidebar-nav" class="flex-1 p-3 space-y-1 overflow-y-auto"></nav>
-  <div class="p-3 border-t border-outline-variant/40">
-    <button id="btn-logout" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-error/10 text-error text-sm"><span class="material-symbols-outlined text-xl">logout</span> Keluar</button>
-  </div>
-</aside>
-
-<header class="fixed top-0 right-0 left-0 lg:left-72 h-16 glass z-30 border-b border-outline-variant/40 flex items-center justify-between px-4 gap-3">
-  <div class="flex items-center gap-3">
-    <button id="btn-menu" class="lg:hidden p-2 rounded-lg hover:bg-surface-container"><span class="material-symbols-outlined">menu</span></button>
-    <h2 class="font-headline font-semibold text-lg">Asisten Sutradara</h2>
-  </div>
-  <div class="flex items-center gap-2">
-    <div id="badge-role" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border"></div>
-    <button id="btn-notif" class="relative p-2 rounded-lg hover:bg-surface-container">
-      <span class="material-symbols-outlined">notifications</span>
-      <span id="notif-badge" class="hidden absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center"></span>
-    </button>
-    <button id="btn-theme" class="p-2 rounded-lg hover:bg-surface-container"><span class="material-symbols-outlined" id="theme-icon">dark_mode</span></button>
-    <div id="header-avatar" class="w-9 h-9 rounded-full bg-primary-container text-primary flex items-center justify-center font-semibold text-sm border border-outline-variant/40"></div>
-  </div>
-</header>
-
-<main class="relative z-10 pt-16 lg:pl-72 pb-24 lg:pb-8">
-  <div class="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
-
-    <div class="glass rounded-2xl p-1 inline-flex gap-1 flex-wrap">
-      <button data-tab="prompt" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-base">book</span> Prompt Book
-      </button>
-      <button data-tab="catatan" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-base">edit_note</span> Catatan Harian
-      </button>
-      <button data-tab="standby" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-base">timer</span> Standby Cue Live
-      </button>
-    </div>
-
-    <div id="tab-content"></div>
-  </div>
-</main>
-
-<nav id="bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 glass border-t border-outline-variant/40 z-30 bottom-nav"></nav>
-
-<div id="notif-panel" class="fixed inset-0 z-50 hidden">
-  <div id="notif-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-  <div id="notif-drawer" class="absolute top-0 right-0 bottom-0 w-full max-w-md glass border-l border-outline-variant/40 flex flex-col translate-x-full transition-transform duration-300">
-    <div class="p-4 border-b border-outline-variant/40 shrink-0">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-headline font-semibold flex items-center gap-2"><span class="material-symbols-outlined text-primary">notifications</span> Notifikasi</h3>
-        <div class="flex items-center gap-1">
-          <button id="btn-mark-all" class="p-1.5 rounded-lg hover:bg-surface-container text-primary"><span class="material-symbols-outlined text-sm">done_all</span></button>
-          <button id="btn-notif-close" class="p-1.5 rounded-lg hover:bg-surface-container"><span class="material-symbols-outlined text-xl">close</span></button>
-        </div>
-      </div>
-      <div class="relative mb-3">
-        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-        <input id="notif-search" type="text" placeholder="Cari notifikasi..." class="w-full pl-10 pr-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm" />
-      </div>
-    </div>
-    <div id="notif-list" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
-  </div>
-</div>
-
-<div id="modal-blocking" class="fixed inset-0 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+<div id="modal-blocking" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
   <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-modal></div>
-  <div class="relative glass rounded-2xl max-w-lg w-full my-8 p-6">
-    <h3 class="font-headline font-semibold mb-4">Editor Blocking</h3>
-    <div class="space-y-3">
-      <input id="bl-adegan" placeholder="Nama adegan" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm" />
-      <p class="text-xs text-on-surface-variant">Klik area panggung (grid 3x3) untuk menempatkan pemain.</p>
-      <div id="bl-grid" class="aspect-video grid grid-cols-3 grid-rows-3 gap-1 bg-surface-container rounded-lg p-2">
-        ${Array.from({ length: 9 }).map((_, i) => `
-          <button class="bl-cell rounded bg-surface-container-high hover:bg-primary-container/40 transition border border-outline-variant/40 text-xs" data-cell="${i}"></button>
-        `).join("")}
-      </div>
-      <select id="bl-pemain" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm">
-        <option value="">Pilih Pemain</option>
-      </select>
-      <div class="flex gap-2">
-        <button type="button" data-close-modal class="flex-1 py-2.5 rounded-lg bg-surface-container-high text-sm">Batal</button>
-        <button id="btn-simpan-blocking" class="flex-1 py-2.5 rounded-lg bg-primary text-on-primary text-sm font-medium">Simpan</button>
-      </div>
+  <div class="relative glass rounded-2xl max-w-2xl w-full p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-headline font-semibold flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">grid_3x3</span> Blocking 3x3
+      </h3>
+      <button data-close-modal class="p-1 rounded hover:bg-surface-container">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2">
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="0">1</button>
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="1">2</button>
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="2">3</button>
+
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="3">4</button>
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="4">5</button>
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="5">6</button>
+
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="6">7</button>
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="7">8</button>
+      <button class="bl-cell w-full h-20 rounded-xl bg-surface-container border border-outline-variant text-xs" data-cell="8">9</button>
     </div>
   </div>
 </div>
-
-<div id="modal-cue" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-modal></div>
-  <div class="relative glass rounded-2xl max-w-md w-full p-6">
-    <h3 class="font-headline font-semibold mb-4">Tambah Cue</h3>
-    <form id="form-cue" class="space-y-3">
-      <input id="cue-kode" required placeholder="Kode Cue (contoh: C1)" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm" />
-      <input id="cue-timing" required placeholder="Timing (contoh: 00:05:00)" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm" />
-      <input id="cue-desk" required placeholder="Deskripsi aksi" class="w-full px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-sm" />
-      <div class="flex gap-2">
-        <button type="button" data-close-modal class="flex-1 py-2.5 rounded-lg bg-surface-container-high text-sm">Batal</button>
-        <button type="submit" class="flex-1 py-2.5 rounded-lg bg-primary text-on-primary text-sm font-medium">Simpan</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="toast-container" class="fixed top-20 right-4 z-[100] space-y-2"></div>
-
-<script type="module" src="assets/js/asisten.js"></script>
-</body>
-</html>
