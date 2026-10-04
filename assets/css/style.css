@@ -237,3 +237,48 @@ html:not(.dark) .glass {
   gap: 0.75rem;
 }
 .pwa-banner img { width: 40px; height: 40px; }
+/* =========================================================
+ * FIX INPUT LOGIN (form putih, tidak boleh kena dark-mode override)
+ * ========================================================= */
+
+input.reg-input,
+#input-identitas,
+#input-password,
+#input-passkey,
+#input-kelas {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  caret-color: #111827 !important;
+}
+
+input.reg-input:focus,
+#input-identitas:focus,
+#input-password:focus,
+#input-passkey:focus,
+#input-kelas:focus {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  border-color: #6366f1 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Matikan autofill browser yang bikin input jadi kuning/abu */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Select juga */
+select.reg-input,
+#input-kelas,
+#reg-peran {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
