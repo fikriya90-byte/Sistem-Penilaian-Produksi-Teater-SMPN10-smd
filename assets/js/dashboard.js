@@ -1,20 +1,23 @@
 /**
- * SP-PPT — Dashboard (versi final — tanpa blocking)
+ * SP-PPT — Dashboard (final)
+ * - Guru/Admin: pilih kelas dulu → baru tampil data
+ * - Siswa: langsung tampil data
  */
 
 import { db } from "./firebase-init.js";
 import {
-  collection, getDocs, query, limit,
+  collection, getDocs, query, limit, where,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { protectPage, clearSession } from "./router.js";
 import {
-  showToast, openModal, closeModal, formatTanggal, countdown,
-  warnaPeran, inisial, logActivity, esc,
+  showToast, formatTanggal, countdown, warnaPeran, inisial, logActivity, esc, waktuRelatif,
 } from "./utils.js";
 
 let ME = null;
+let KELAS_AKTIF = null;
+let DAFTAR_KELAS = [];
 
-const MENU_BASE = [
+const MENU_SISWA = [
   { icon: "dashboard", label: "Dashboard", href: "dashboard.html" },
   { icon: "grade", label: "Nilai", href: "nilai.html" },
   { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
@@ -43,7 +46,7 @@ const MENU_GURU = [
 ];
 
 function renderSidebar(role) {
-  const menu = role === "siswa" ? MENU_BASE : MENU_GURU;
+  const menu = role === "siswa" ? MENU_SISWA : MENU_GURU;
   const page = window.location.pathname.split("/").pop() || "dashboard.html";
   document.getElementById("sidebar-nav").innerHTML = menu.map((m) => `
     <a href="${m.href}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-sm ${
@@ -73,7 +76,8 @@ function renderBottomNav(role) {
 }
 
 function renderHeader(profile) {
-  document.getElementById("header-avatar").textContent = inisial(profile.nama);
+  const av = document.getElementById("header-avatar");
+  if (av) av.textContent = inisial(profile.nama);
   const badge = document.getElementById("badge-role");
   if (badge) {
     badge.className = `hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${warnaPeran(profile.peran)}`;
@@ -81,7 +85,9 @@ function renderHeader(profile) {
   }
 }
 
-/* Kartu-kartu */
+/* =========================================================
+ * KARTU-KARTU
+ * ========================================================= */
 function cardProfil(p) {
   return `<div class="glass rounded-2xl p-5 flex items-center gap-4">
     <div class="w-16 h-16 rounded-full bg-primary-container text-primary flex items-center justify-center text-xl font-bold border border-outline-variant/40">${inisial(p.nama)}</div>
@@ -90,27 +96,90 @@ function cardProfil(p) {
       <div class="flex flex-wrap gap-1.5 mt-1">
         <span class="px-2 py-0.5 rounded-full text-[10px] border ${warnaPeran(p.peran)}">${esc(p.peran)}</span>
         <span class="px-2 py-0.5 rounded-full text-[10px] bg-surface-container-high border border-outline-variant">${esc(p.divisi || "-")}</span>
-        <span class="px-2 py-0.5 rounded-full text-[10px] bg-surface-container-high border border-outline-variant">${esc(p.kelas || "-")}</span>
+        ${p.kelas ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-surface-container-high border border-outline-variant">${esc(p.kelas)}</span>` : ""}
       </div>
     </div>
   </div>`;
 }
 
-function cardQuickActions() {
-  const actions = [
-    { icon: "grade", label: "Nilai", href: "nilai.html" },
-    { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
-    { icon: "fact_check", label: "Absensi", href: "absensi.html" },
-    { icon: "checklist", label: "Tugas", href: "checklist.html" },
-    { icon: "groups", label: "Kerabat", href: "struktur.html" },
-    { icon: "description", label: "Rapor", href: "rapor.html" },
+function cardSelectorKelasGuru() {
+  return `
+  <div class="glass rounded-2xl p-5 border-l-4 border-secondary">
+    <h3 class="font-headline font-semibold mb-3 flex items-center gap-2">
+      <span class="material-symbols-outlined text-secondary">school</span> Pilih Kelas
+    </h3>
+    <p class="text-xs text-on-surface-variant mb-3">Pilih kelas untuk melihat data siswa dan statistik.</p>
+    <select id="pilih-kelas-guru" class="w-full px-4 py-3 rounded-xl bg-surface-container border border-outline-variant text-sm focus:border-primary outline-none">
+      <option value="">— Pilih Kelas —</option>
+      ${DAFTAR_KELAS.map((k) => `<option value="${k.id}">${esc(k.name)} (${k.students?.length || 0} siswa)</option>`).join("")}
+    </select>
+  </div>`;
+}
+
+function cardInfoKelas(kelas) {
+  const total = kelas.students?.length || 0;
+  return `
+  <div class="glass rounded-2xl p-5 border-l-4 border-primary">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div>
+        <h3 class="font-headline font-semibold text-lg">${esc(kelas.name)}</h3>
+        <p class="text-xs text-on-surface-variant">Kode Kelas: <b class="text-primary">${esc(kelas.code || "-")}</b></p>
+      </div>
+      <span class="px-3 py-1 rounded-full bg-primary-container text-primary text-xs font-medium">${total} Siswa</span>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div class="p-3 rounded-xl bg-surface-container text-center">
+        <p class="text-xs text-on-surface-variant">Siswa</p>
+        <p class="text-2xl font-bold text-primary">${total}</p>
+      </div>
+      <div class="p-3 rounded-xl bg-surface-container text-center">
+        <p class="text-xs text-on-surface-variant">Pemain</p>
+        <p class="text-2xl font-bold text-secondary">${(kelas.students || []).filter((s) => !s.peran || s.peran === "Pemain").length}</p>
+      </div>
+      <div class="p-3 rounded-xl bg-surface-container text-center">
+        <p class="text-xs text-on-surface-variant">Divisi</p>
+        <p class="text-2xl font-bold text-tertiary">6</p>
+      </div>
+      <div class="p-3 rounded-xl bg-surface-container text-center">
+        <p class="text-xs text-on-surface-variant">Aktif</p>
+        <p class="text-2xl font-bold text-green-400">100%</p>
+      </div>
+    </div>
+
+    <h4 class="text-sm font-medium mb-2">Daftar Siswa</h4>
+    <div class="space-y-1.5 max-h-72 overflow-y-auto">
+      ${(kelas.students || []).length ? kelas.students.map((s, i) => `
+        <div class="p-2.5 rounded-lg bg-surface-container flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-primary-container text-primary flex items-center justify-center text-xs font-semibold">${inisial(s.name)}</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium truncate">${esc(s.name)}</p>
+            <p class="text-[10px] text-on-surface-variant truncate">${esc(s.email)}</p>
+          </div>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-surface-container-high">${esc(s.peran || "Pemain")}</span>
+        </div>
+      `).join("") : `<p class="text-sm text-on-surface-variant text-center py-4">Belum ada siswa di kelas ini</p>`}
+    </div>
+  </div>`;
+}
+
+function cardAksiGuru() {
+  const items = [
+    { l: "Rekap Nilai", h: "nilai.html", i: "analytics" },
+    { l: "Struktur", h: "struktur.html", i: "groups" },
+    { l: "Jadwal", h: "jadwal.html", i: "calendar_month" },
+    { l: "Absensi", h: "absensi.html", i: "fact_check" },
+    { l: "Broadcast", h: "broadcast.html", i: "campaign" },
+    { l: "Rapor PDF", h: "rapor.html", i: "description" },
+    { l: "Panel Admin", h: "admin.html", i: "admin_panel_settings" },
+    { l: "Pengaturan", h: "pengaturan.html", i: "settings" },
   ];
   return `<div class="glass rounded-2xl p-5">
-    <h3 class="font-headline font-semibold mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-primary">bolt</span> Aksi Cepat</h3>
-    <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
-      ${actions.map((a) => `<a href="${a.href}" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface-container hover:bg-surface-container-high transition">
-        <span class="material-symbols-outlined text-primary">${a.icon}</span>
-        <span class="text-[10px] text-center">${a.label}</span></a>`).join("")}
+    <h3 class="font-headline font-semibold mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-primary">bolt</span> Aksi Cepat Guru</h3>
+    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+      ${items.map((a) => `<a href="${a.h}" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface-container hover:bg-surface-container-high transition">
+        <span class="material-symbols-outlined text-primary">${a.i}</span>
+        <span class="text-[10px] text-center">${a.l}</span></a>`).join("")}
     </div></div>`;
 }
 
@@ -128,6 +197,24 @@ function cardProgres() {
       <div><div class="w-full h-1.5 rounded bg-surface-container-high mb-1"></div><span class="text-on-surface-variant">Pelaksanaan</span></div>
       <div><div class="w-full h-1.5 rounded bg-surface-container-high mb-1"></div><span class="text-on-surface-variant">Pertunjukan</span></div>
       <div><div class="w-full h-1.5 rounded bg-surface-container-high mb-1"></div><span class="text-on-surface-variant">Pasca</span></div>
+    </div></div>`;
+}
+
+function cardQuickActionsSiswa() {
+  const actions = [
+    { icon: "grade", label: "Nilai", href: "nilai.html" },
+    { icon: "calendar_month", label: "Jadwal", href: "jadwal.html" },
+    { icon: "fact_check", label: "Absensi", href: "absensi.html" },
+    { icon: "checklist", label: "Tugas", href: "checklist.html" },
+    { icon: "groups", label: "Kerabat", href: "struktur.html" },
+    { icon: "description", label: "Rapor", href: "rapor.html" },
+  ];
+  return `<div class="glass rounded-2xl p-5">
+    <h3 class="font-headline font-semibold mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-primary">bolt</span> Aksi Cepat</h3>
+    <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      ${actions.map((a) => `<a href="${a.href}" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface-container hover:bg-surface-container-high transition">
+        <span class="material-symbols-outlined text-primary">${a.icon}</span>
+        <span class="text-[10px] text-center">${a.label}</span></a>`).join("")}
     </div></div>`;
 }
 
@@ -156,36 +243,6 @@ function cardDeadline(list) {
       </div>`).join("")}</div></div>`;
 }
 
-function cardStatistik() {
-  return `<div class="glass rounded-2xl p-5">
-    <h3 class="font-headline font-semibold mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-secondary">insights</span> Statistik Pribadi</h3>
-    <div class="grid grid-cols-3 gap-3 text-center">
-      <div class="p-3 rounded-xl bg-surface-container"><p class="text-2xl font-bold text-green-400">-</p><p class="text-[10px] text-on-surface-variant">Kehadiran</p></div>
-      <div class="p-3 rounded-xl bg-surface-container"><p class="text-2xl font-bold text-primary">-</p><p class="text-[10px] text-on-surface-variant">Nilai</p></div>
-      <div class="p-3 rounded-xl bg-surface-container"><p class="text-2xl font-bold text-secondary">-</p><p class="text-[10px] text-on-surface-variant">Tugas</p></div>
-    </div></div>`;
-}
-
-function cardGuruPanel() {
-  const items = [
-    { l: "Rekap Nilai", h: "nilai.html", i: "analytics" },
-    { l: "Struktur", h: "struktur.html", i: "groups" },
-    { l: "Jadwal", h: "jadwal.html", i: "calendar_month" },
-    { l: "Absensi", h: "absensi.html", i: "fact_check" },
-    { l: "Broadcast", h: "broadcast.html", i: "campaign" },
-    { l: "Rapor PDF", h: "rapor.html", i: "description" },
-    { l: "Panel Admin", h: "admin.html", i: "admin_panel_settings" },
-    { l: "Pengaturan", h: "pengaturan.html", i: "settings" },
-  ];
-  return `<div class="glass rounded-2xl p-5 border-l-4 border-primary">
-    <h3 class="font-headline font-semibold mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-primary">school</span> Panel Guru</h3>
-    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
-      ${items.map((a) => `<a href="${a.h}" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface-container hover:bg-surface-container-high transition">
-        <span class="material-symbols-outlined text-primary">${a.i}</span>
-        <span class="text-[10px] text-center">${a.l}</span></a>`).join("")}
-    </div></div>`;
-}
-
 function cardPanelKhusus(p) {
   const map = {
     "Sutradara": { label: "Panel Sutradara", href: "sutradara.html", icon: "movie", desc: "Visi artistik, casting, catatan harian" },
@@ -208,6 +265,63 @@ function cardPanelKhusus(p) {
 }
 
 /* =========================================================
+ * RENDER DASHBOARD
+ * ========================================================= */
+function renderDashboardSiswa() {
+  const c = document.getElementById("content");
+  c.innerHTML = `
+    ${cardProfil(ME.profile)}
+    ${cardPanelKhusus(ME.profile)}
+    ${cardProgres()}
+    ${cardQuickActionsSiswa()}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="dyn">
+      ${cardJadwal([])}${cardDeadline([])}
+    </div>
+    <p class="text-center text-xs text-on-surface-variant pb-4">SP-PPT v1.0 · SMPN 10 Samarinda · 2025</p>`;
+  loadDynamicCards();
+}
+
+function renderDashboardGuru() {
+  const c = document.getElementById("content");
+  c.innerHTML = `
+    ${cardProfil(ME.profile)}
+    ${cardSelectorKelasGuru()}
+    <div id="kelas-content"></div>
+    ${cardAksiGuru()}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="dyn">
+      ${cardJadwal([])}${cardDeadline([])}
+    </div>
+    <p class="text-center text-xs text-on-surface-variant pb-4">SP-PPT v1.0 · SMPN 10 Samarinda · 2025</p>`;
+
+  // Event listener pilih kelas
+  document.getElementById("pilih-kelas-guru").addEventListener("change", (e) => {
+    const kelasId = e.target.value;
+    const k = DAFTAR_KELAS.find((x) => x.id === kelasId);
+    const kc = document.getElementById("kelas-content");
+    if (!k) { kc.innerHTML = ""; return; }
+    KELAS_AKTIF = k;
+    kc.innerHTML = cardInfoKelas(k);
+  });
+
+  loadDynamicCards();
+}
+
+async function loadDynamicCards() {
+  setTimeout(async () => {
+    try {
+      const jSnap = await getDocs(query(collection(db, "jadwal"), limit(5)));
+      const tSnap = await getDocs(query(collection(db, "tugas"), limit(5)));
+      const jadwal = jSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.tanggal || "").localeCompare(b.tanggal || ""));
+      const tugas = tSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => new Date(a.deadline || 0) - new Date(b.deadline || 0));
+      const dyn = document.getElementById("dyn");
+      if (dyn) dyn.innerHTML = cardJadwal(jadwal) + cardDeadline(tugas);
+    } catch (e) { console.warn("Dynamic load:", e); }
+  }, 100);
+}
+
+/* =========================================================
  * INIT
  * ========================================================= */
 (async function init() {
@@ -215,11 +329,11 @@ function cardPanelKhusus(p) {
   try {
     const { uid, profile } = await protectPage();
     ME = { uid, profile };
-    console.log("[Init] Profile OK:", profile.nama, profile.role);
+    console.log("[Init]", profile.nama, profile.role);
 
-    try { renderSidebar(profile.role); } catch (e) { console.warn("Sidebar:", e); }
-    try { renderBottomNav(profile.role); } catch (e) { console.warn("BottomNav:", e); }
-    try { renderHeader(profile); } catch (e) { console.warn("Header:", e); }
+    renderSidebar(profile.role);
+    renderBottomNav(profile.role);
+    renderHeader(profile);
 
     // Theme
     const html = document.documentElement;
@@ -247,42 +361,21 @@ function cardPanelKhusus(p) {
       sb.classList.toggle("flex");
     });
 
-    // Render kartu statis (langsung, tanpa await apapun)
-    console.log("[Init] Render kartu statis");
-    document.getElementById("content").innerHTML = `
-      ${cardProfil(profile)}
-      ${cardPanelKhusus(profile)}
-      ${cardProgres()}
-      ${cardQuickActions()}
-      ${profile.role === "guru" || profile.role === "admin" ? cardGuruPanel() : ""}
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="dynamic-cards">
-        ${cardJadwal([])}
-        ${cardDeadline([])}
-      </div>
-      ${cardStatistik()}
-      <p class="text-center text-xs text-on-surface-variant pb-4">SP-PPT v1.0 · SMPN 10 Samarinda · 2025</p>
-    `;
-    console.log("[Init] Kartu statis dirender");
-
-    // Load data dinamis di background (tidak blocking)
-    setTimeout(async () => {
+    // Render sesuai role
+    if (profile.role === "guru" || profile.role === "admin") {
+      // Load daftar kelas dari Firestore
       try {
-        console.log("[Init] Load dynamic data");
-        const [jSnap, tSnap] = await Promise.all([
-          getDocs(query(collection(db, "jadwal"), limit(5))),
-          getDocs(query(collection(db, "tugas"), limit(5))),
-        ]);
-        const jadwal = jSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => (a.tanggal || "").localeCompare(b.tanggal || ""));
-        const tugas = tSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => new Date(a.deadline || 0) - new Date(b.deadline || 0));
-        const dyn = document.getElementById("dynamic-cards");
-        if (dyn) dyn.innerHTML = cardJadwal(jadwal) + cardDeadline(tugas);
-        console.log("[Init] Dynamic data OK");
+        const kelasSnap = await getDocs(collection(db, "classes"));
+        DAFTAR_KELAS = kelasSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        console.log("[Init] Kelas:", DAFTAR_KELAS.length);
       } catch (e) {
-        console.warn("[Init] Dynamic data gagal:", e.message);
+        console.warn("[Init] Gagal load kelas:", e);
+        DAFTAR_KELAS = [];
       }
-    }, 100);
+      renderDashboardGuru();
+    } else {
+      renderDashboardSiswa();
+    }
 
     console.log("[Init] Selesai");
   } catch (e) {
@@ -292,10 +385,7 @@ function cardPanelKhusus(p) {
         <span class="material-symbols-outlined text-5xl text-error mb-3">error</span>
         <p class="text-sm font-medium text-error mb-2">Terjadi kesalahan</p>
         <p class="text-xs text-on-surface-variant mb-4">${esc(e.message || String(e))}</p>
-        <div class="flex gap-2 justify-center">
-          <button onclick="location.reload()" class="px-4 py-2 rounded-lg bg-primary text-on-primary text-sm">Muat Ulang</button>
-          <button onclick="localStorage.removeItem('sppt_session');location.href='index.html'" class="px-4 py-2 rounded-lg bg-error text-white text-sm">Login Ulang</button>
-        </div>
+        <button onclick="location.reload()" class="px-4 py-2 rounded-lg bg-primary text-on-primary text-sm">Muat Ulang</button>
       </div>`;
   }
 })();
