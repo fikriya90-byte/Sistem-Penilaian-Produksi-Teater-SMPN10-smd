@@ -221,3 +221,14 @@ export function esc(str = "") {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+/* =========================================================
+ * LOGOUT HELPER (tanpa Firebase Auth)
+ * ========================================================= */
+export function doLogout() {
+  localStorage.removeItem("sppt_session");
+  window.location.replace("index.html?logout=1");
+}
+
+export async function signOut() {
+  doLogout();
+}
