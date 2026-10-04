@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Migrasi Data SP-PPT</title>
+<style>
+  body { font-family: monospace; background: #101415; color: #e0e3e5; padding: 30px; max-width: 800px; margin: auto; }
+  button { padding: 14px 28px; font-size: 16px; background: #c4c1fb; color: #2d2a5b; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  pre { background: #1d2022; padding: 15px; border-radius: 8px; max-height: 500px; overflow: auto; font-size: 13px; margin-top: 20px; }
+  .info { background: #1e1b4b; padding: 15px; border-radius: 8px; margin-bottom: 20px; line-height: 1.6; }
+  .ok { color: #7ed957; }
+  .err { color: #ff8e8e; }
+</style>
+</head>
+<body>
+
+<h1>Migrasi Data SP-PPT</h1>
+
+<div class="info">
+  <strong>Skrip ini akan:</strong><br>
+  1. Baca koleksi <code>teachers</code> → tulis ulang ke koleksi <code>users</code><br>
+  2. Baca koleksi <code>classes.students</code> → tulis ulang ke koleksi <code>users</code><br>
+  3. Data asli <strong>tidak dihapus</strong>, hanya disalin<br><br>
+  <em>Klik tombol di bawah untuk memulai. Tunggu sampai selesai.</em>
+</div>
+
+<button id="btn-migrasi">Mulai Migrasi</button>
+<pre id="log">Log akan muncul di sini...</pre>
+
+<script type="module">
+import { db } from "./assets/js/firebase-init.js";
+import {
+  collection, getDocs, doc, setDoc, serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const logEl = document.getElementById("log");
+const log = (msg, cls = "") => {
+  logEl.textContent += "\n" + msg;
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log(msg);
+};
+
+document.getElementById("btn-migrasi").addEventListener("click", async (e) => {
+  e.target.disabled = true;
+  logEl.textContent = "=== MULAI MIGRASI ===";
+
+  let suksesGuru = 0, gagalGuru = 0, suksesSiswa = 0, gagalSiswa = 0;
+
+  // ---- 1. MIGRASI GURU ----
+  log("\n--- Membaca koleksi 'teachers' ---");
+  try {
+    const tSnap = await getDocs(collection(db, "teachers"));
+    log(`Ditemukan ${tSnap.size} guru`);
+
+    for (const d of tSnap.docs) {
+      const t = d.data();
+      if (!t.email) { log(`  SKIP: dokumen ${d.id} tanpa email`, "err"); continue; }
+      const uid = `teacher_${t.email.toLowerCase().trim()}`;
+      try {
+        await setDoc(doc(db, "users", uid), {
+          role: "guru",
+          peran: "Guru Pembina",
+          nama: t.name || "Guru",
+          email: t.email.toLowerCase().trim(),
+          whatsapp: t.phone || "",
+          password: t.password || "",
+          kelas: "",
+          divisi: "Guru",
+          migratedAt: serverTimestamp(),
+        }, { merge: true });
+        log(`  OK: ${t.name || t.email} → users/${uid}`, "ok");
+        suksesGuru++;
+      } catch (err) {
+        log(`  GAGAL: ${t.email} - ${err.message}`, "err");
+        gagalGuru++;
+      }
+    }
+  } catch (err) {
+    log(`ERROR baca teachers: ${err.message}`, "err");
+  }
+
+  // ---- 2. MIGRASI SISWA ----
+  log("\n--- Membaca koleksi 'classes' ---");
+  try {
+    const cSnap = await getDocs(collection(db, "classes"));
+    log(`Ditemukan ${cSnap.size} kelas`);
+
+    for (const d of cSnap.docs) {
+      const k = d.data();
+      const students = k.students || [];
+      log(`\nKelas: ${k.name || d.id} (${students.length} siswa)`);
+
+      for (const s of students) {
+        if (!s.email) { log(`  SKIP: siswa tanpa email`, "err"); continue; }
+        const uid = `student_${s.email.toLowerCase().trim()}`;
+        try {
+          await setDoc(doc(db, "users", uid), {
+            role: "siswa",
+            peran: s.peran || "Pemain",
+            nama: s.name || "Siswa",
+            nis: s.nis || "",
+            kelas: k.name || "",
+            kelasId: d.id,
+            email: s.email.toLowerCase().trim(),
+            whatsapp: s.phone || "",
+            password: s.password || "",
+            divisi: s.divisi || "Pemeran",
+            migratedAt: serverTimestamp(),
+          }, { merge: true });
+          log(`  OK: ${s.name || s.email} → users/${uid}`, "ok");
+          suksesSiswa++;
+        } catch (err) {
+          log(`  GAGAL: ${s.email} - ${err.message}`, "err");
+          gagalSiswa++;
+        }
+      }
+    }
+  } catch (err) {
+    log(`ERROR baca classes: ${err.message}`, "err");
+  }
+
+  log("\n=== SELESAI ===");
+  log(`Guru : ${suksesGuru} sukses, ${gagalGuru} gagal`);
+  log(`Siswa: ${suksesSiswa} sukses, ${gagalSiswa} gagal`);
+  log(`\nAnda sekarang bisa login dan semua fitur akan berjalan.`);
+});
+</script>
+</body>
+</html>
