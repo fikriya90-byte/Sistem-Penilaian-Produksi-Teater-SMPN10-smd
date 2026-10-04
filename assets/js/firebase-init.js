@@ -1,12 +1,9 @@
 /**
- * SP-PPT — Firebase Initialization
- * Hanya inisialisasi Firestore (tidak pakai Firebase Auth).
+ * SP-PPT — Firebase Initialization (Tanpa Firebase Auth)
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  initializeFirestore, enableIndexedDbPersistence,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDczk0n-4QvvwTDikDBnuTkRX_SlXIV9JQ",
@@ -20,12 +17,12 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {});
 
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === "failed-precondition") console.warn("[Firestore] Persistence gagal: multiple tabs.");
-  else if (err.code === "unimplemented") console.warn("[Firestore] Persistence tidak didukung.");
-});
+// Stub auth — supaya file lain yang masih import { auth } tidak crash
+export const auth = {
+  currentUser: null,
+  signOut: () => Promise.resolve(),
+};
 
-// Daftar peran resmi
 export const PERAN_LIST = [
   "Pimpinan Produksi", "Sekretaris", "Bendahara",
   "Sutradara", "Asisten Sutradara",
